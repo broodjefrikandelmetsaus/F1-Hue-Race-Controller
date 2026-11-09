@@ -2,10 +2,12 @@
 
 Een replay-first webapp om historische Formule 1-sessies te laden, race-events op een tijdlijn te bekijken en effecten te synchroniseren met het terugkijken.
 
-## Huidige bouw (v0.2.0)
+## Huidige bouw (v0.3.0-test)
 
 - Seizoenen 2023 t/m huidig jaar laden via OpenF1.
-- Grand Prix-weekends en sessies selecteren.
+- Grand Prix-weekends en sessies selecteren, inclusief toekomstige en nog lopende sessies.
+- Kalender automatisch opnieuw controleren bij openen, elke 15 minuten en wanneer de app na een tijdje weer actief wordt.
+- Sessies duidelijk markeren als gepland, bezig of afgelopen; eventdata laden kan zodra de sessie is afgelopen.
 - Race Control-signalen, pitstops, inhaalacties, bandensets, snelste ronde en uitslagen ophalen waar de databron ze heeft.
 - Replay-tijdlijn met start/pauze/reset, event-scrubbing en buffer-offset van -10 tot +10 seconden.
 - Visuele previews voor vlag-effecten en Red Bull-standby.
@@ -40,3 +42,10 @@ De GitHub Pages-workflow mag Pages automatisch inschakelen wanneer dit nog niet 
 ## Lokale test
 
 Open `index.html` via een eenvoudige lokale webserver (bijvoorbeeld VS Code Live Server). De API vraagt een internetverbinding.
+
+
+## Android-testbuild (APK)
+
+Na een push naar `main` bouwt GitHub Actions automatisch een debug-APK met Capacitor.
+Open in GitHub **Actions → Android test APK** en download het artifact `f1-hue-test-apk`.
+Dit is een test-APK om rechtstreeks op Android te installeren; het is nog geen Play Store-release.
