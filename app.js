@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   year: new Date().getFullYear(),
   meetings: [], sessions: [], meeting: null, session: null,
+  calendarLastChecked: 0, calendarRefreshTimer: null, calendarRefreshing: false,
   events: [], drivers: new Map(), results: [], duration: 0,
   offset: Number(localStorage.getItem("fh_offset") || 0),
   standby: localStorage.getItem("fh_standby") !== "false",
@@ -56,7 +57,7 @@ async function api(path, params) {
 }
 function setStatus(message, busy=false) {
   $("dataStatus").textContent = message;
-  $("loadRaceButton").disabled = busy || !state.session;
+  $("loadRaceButton").disabled = busy || !state.session || sessionStatus(state.session) !== "AFGELOPEN";
   $("loadRaceButton").innerHTML = busy ? "⏳ Events ophalen…" : "<span>↗</span> Laad race-events";
 }
 function toast(message) {
@@ -122,6 +123,29 @@ function isVisible(event) {
   if (filter === "other") return !event.type.startsWith("FLAG_") && !["SAFETY_CAR","VSC","SESSION","PIT_STOP","TYRE_CHANGE","OVERTAKE"].includes(event.type);
   return true;
 }
+function sessionStatus(session) {
+  if (!session || session.is_cancelled) return "GEANNULEERD";
+  const now = Date.now();
+  const start = Date.parse(session.date_start || "");
+  const end = Date.parse(session.date_end || session.date_start || "");
+  if (Number.isFinite(end) && end <= now) return "AFGELOPEN";
+  if (Number.isFinite(start) && start <= now && (!Number.isFinite(end) || end > now)) return "BEZIG";
+  return "GEPLAND";
+}
+function sessionStatusIcon(session) {
+  const status = sessionStatus(session);
+  return status === "AFGELOPEN" ? "✓" : status === "BEZIG" ? "●" : status === "GEPLAN" ? "◷" : "!";
+}
+function updateCalendarStatus() {
+  const el = $("calendarUpdated");
+  if (!el) return;
+  if (!state.calendarLastChecked) {
+    el.textContent = "Automatische controle elke 15 minuten";
+    return;
+  }
+  const time = new Date(state.calendarLastChecked).toLocaleTimeString("nl-NL", {hour:"2-digit",minute:"2-digit"});
+  el.textContent = "Laatste controle " + time + " · controleert elke 15 min";
+}
 async function loadYears() {
   const select = $("yearSelect");
   const max = new Date().getFullYear();
@@ -130,8 +154,37 @@ async function loadYears() {
     if(y===state.year) opt.selected=true; select.append(opt);
   }
   await loadMeetings(state.year);
+  state.calendarLastChecked = Date.now();
+  updateCalendarStatus();
+  startCalendarAutoRefresh();
 }
-async function loadMeetings(year) {
+function startCalendarAutoRefresh() {
+  if (state.calendarRefreshTimer) clearInterval(state.calendarRefreshTimer);
+  state.calendarRefreshTimer = setInterval(() => {
+    if (document.visibilityState === "visible") refreshCalendar(true);
+  }, 15 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && Date.now() - state.calendarLastChecked > 5 * 60 * 1000) {
+      refreshCalendar(true);
+    }
+  });
+}
+async function refreshCalendar(silent=false) {
+  if (state.calendarRefreshing) return;
+  state.calendarRefreshing = true;
+  const button = $("refreshCalendarButton");
+  if (button) { button.disabled = true; button.textContent = "⏳ Bijwerken…"; }
+  const ok = await loadMeetings(state.year, {preserveSelection:true});
+  state.calendarLastChecked = Date.now();
+  updateCalendarStatus();
+  state.calendarRefreshing = false;
+  if (button) { button.disabled = false; button.textContent = "↻ Kalender verversen"; }
+  if (ok && !silent) toast("F1-kalender bijgewerkt.");
+  if (!ok && !silent) toast("Kalender kon niet worden bijgewerkt. Probeer het opnieuw.");
+}
+async function loadMeetings(year, options={}) {
+  const previousMeetingKey = options.preserveSelection ? state.meeting?.meeting_key : null;
+  const previousSessionKey = options.preserveSelection ? state.session?.session_key : null;
   state.year=Number(year); state.meeting=null; state.session=null; state.sessions=[];
   $("meetingSelect").disabled=true; $("sessionSelect").disabled=true;
   $("meetingSelect").innerHTML="<option>Kalender laden…</option>";
@@ -139,47 +192,70 @@ async function loadMeetings(year) {
   setStatus("Grand Prix-kalender ophalen…",true);
   try {
     const meetings=await api("meetings",{year});
-    state.meetings=meetings.filter(m=>!m.is_cancelled && new Date(m.date_start)<=new Date()).sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
-    $("meetingSelect").innerHTML='<option value="">Selecteer Grand Prix</option>'+state.meetings.map(m=>'<option value="'+m.meeting_key+'">'+escapeHtml(m.meeting_name)+' · '+escapeHtml(m.location||m.country_name||"")+'</option>').join("");
+    // Toon ook de volgende Grands Prix: toekomstige weekends mogen niet verdwijnen.
+    state.meetings=meetings.filter(m=>!m.is_cancelled).sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
+    $("meetingSelect").innerHTML='<option value="">Selecteer Grand Prix</option>'+state.meetings.map(m=>{
+      const date = m.date_start ? new Date(m.date_start).toLocaleDateString("nl-NL",{day:"2-digit",month:"short"}) : "";
+      return '<option value="'+m.meeting_key+'">'+escapeHtml(m.meeting_name)+' · '+escapeHtml(m.location||m.country_name||"")+(date?" · "+date:"")+'</option>';
+    }).join("");
     $("meetingSelect").disabled=false;
-    setStatus(state.meetings.length+" Grand Prix-weekends gevonden");
-    if(state.meetings.length) {
-      const recent = state.meetings.find(m=>new Date(m.date_start) <= new Date()) || state.meetings[0];
-      $("meetingSelect").value=recent.meeting_key; await loadSessions(recent.meeting_key);
+    const previous = state.meetings.find(m=>String(m.meeting_key)===String(previousMeetingKey));
+    const recent = state.meetings.find(m=>new Date(m.date_start).getTime()<=Date.now());
+    const next = state.meetings.filter(m=>new Date(m.date_start).getTime()>Date.now()).sort((a,b)=>new Date(a.date_start)-new Date(b.date_start))[0];
+    const preferred = previous || recent || next;
+    if (preferred) {
+      $("meetingSelect").value=String(preferred.meeting_key);
+      await loadSessions(preferred.meeting_key,{preferredSessionKey:previousSessionKey});
+    } else {
+      setStatus("Geen Grand Prix-weekenden gevonden voor "+year);
     }
+    return true;
   } catch(error) {
     $("meetingSelect").innerHTML='<option value="">Kalender niet bereikbaar</option>';
     setStatus("Fout: "+error.message);
-    toast("Kalender laden is niet gelukt. Check je internetverbinding.");
+    if (!options.preserveSelection) toast("Kalender laden is niet gelukt. Check je internetverbinding.");
+    return false;
   }
 }
-async function loadSessions(meetingKey) {
+async function loadSessions(meetingKey, options={}) {
   state.meeting=state.meetings.find(m=>String(m.meeting_key)===String(meetingKey))||null;
   state.session=null; $("sessionSelect").disabled=true; $("sessionSelect").innerHTML="<option>Sessies laden…</option>";
   if(!state.meeting){setStatus("Kies een Grand Prix");return;}
   setStatus("Sessies ophalen…",true);
   try {
     const sessions=await api("sessions",{meeting_key:meetingKey});
-    const now=Date.now();
-    state.sessions=sessions.filter(s=>new Date(s.date_end||s.date_start).getTime()<=now).sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
-    $("sessionSelect").innerHTML='<option value="">Selecteer sessie</option>'+state.sessions.map(s=>'<option value="'+s.session_key+'">'+escapeHtml(s.session_name||s.session_type)+' · '+new Date(s.date_start).toLocaleDateString("nl-NL")+'</option>').join("");
+    state.sessions=sessions.filter(s=>!s.is_cancelled).sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
+    $("sessionSelect").innerHTML='<option value="">Selecteer sessie</option>'+state.sessions.map(s=>{
+      const date = s.date_start ? new Date(s.date_start).toLocaleDateString("nl-NL",{day:"2-digit",month:"short"}) : "";
+      const status = sessionStatus(s);
+      return '<option value="'+s.session_key+'">['+status+'] '+escapeHtml(s.session_name||s.session_type)+(date?" · "+date:"")+'</option>';
+    }).join("");
     $("sessionSelect").disabled=false;
-    const preferred=state.sessions.find(s=>String(s.session_type).toLowerCase()==="race") || state.sessions.find(s=>String(s.session_type).toLowerCase()==="sprint") || state.sessions[0];
-    if(preferred){$("sessionSelect").value=preferred.session_key;selectSession(preferred.session_key);}
-    setStatus(state.sessions.length+" sessies beschikbaar · kies en laad");
-  } catch(error){$("sessionSelect").innerHTML='<option value="">Geen sessies gevonden</option>';setStatus("Sessies niet beschikbaar: "+error.message);}
+    const previous = state.sessions.find(s=>String(s.session_key)===String(options.preferredSessionKey));
+    const completed = state.sessions.filter(s=>sessionStatus(s)==="AFGELOPEN");
+    const completedRace = completed.find(s=>String(s.session_type||"").toLowerCase()==="race");
+    const next = state.sessions.filter(s=>sessionStatus(s)!=="AFGELOPEN").sort((a,b)=>new Date(a.date_start)-new Date(b.date_start))[0];
+    const preferred = previous || completedRace || completed[0] || next || state.sessions[0];
+    if(preferred){$("sessionSelect").value=String(preferred.session_key);selectSession(preferred.session_key);}
+    else setStatus("Nog geen sessies gepubliceerd voor dit weekend.");
+  } catch(error) {
+    $("sessionSelect").innerHTML='<option value="">Geen sessies gevonden</option>';
+    setStatus("Sessies niet beschikbaar: "+error.message);
+  }
 }
 function selectSession(key) {
   state.session=state.sessions.find(s=>String(s.session_key)===String(key))||null;
-  $("loadRaceButton").disabled=!state.session;
-  if(state.session){
-    $("selectedRaceName").textContent=state.meeting?.meeting_name||"Grand Prix";
-    $("selectedSessionName").textContent=state.session.session_name+" · "+state.year+" · "+(state.meeting?.location||"");
-    setStatus("Sessie geselecteerd · klaar om te laden");
-  }
+  if(!state.session){setStatus("Selecteer een sessie");return;}
+  const status=sessionStatus(state.session);
+  $("selectedRaceName").textContent=state.meeting?.meeting_name||"Grand Prix";
+  $("selectedSessionName").textContent=state.session.session_name+" · "+state.year+" · "+(state.meeting?.location||"")+" · "+status.toLowerCase();
+  if(status==="AFGELOPEN") setStatus("Sessie afgelopen · race-events kunnen worden geladen");
+  else if(status==="BEZIG") setStatus("Sessie bezig · race-events komen beschikbaar na afloop");
+  else setStatus("Sessie gepland · app toont de events zodra de sessie is afgelopen");
 }
 async function loadRaceEvents() {
   if(!state.session)return;
+  if(sessionStatus(state.session)!=="AFGELOPEN"){toast("Deze sessie is nog niet afgelopen. De race-events zijn na afloop beschikbaar.");return;}
   setStatus("Racegegevens ophalen…",true);
   stopPlayer(true); state.events=[];state.drivers=new Map();state.results=[];
   const key=state.session.session_key;
@@ -376,6 +452,7 @@ function updateOffset(value){
   localStorage.setItem("fh_offset",String(state.offset));
 }
 $("yearSelect").addEventListener("change",e=>loadMeetings(e.target.value));
+$("refreshCalendarButton").addEventListener("click",()=>refreshCalendar(false));
 $("meetingSelect").addEventListener("change",e=>loadSessions(e.target.value));
 $("sessionSelect").addEventListener("change",e=>selectSession(e.target.value));
 $("loadRaceButton").addEventListener("click",loadRaceEvents);
