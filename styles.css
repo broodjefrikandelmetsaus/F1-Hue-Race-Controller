@@ -23,3 +23,13 @@
 @media(max-width:480px){.effect-row{gap:7px}.effect-colors input[type=color]{width:22px}}
 .custom-winner-colors select{background:#0a1322;border:1px solid #30425e;border-radius:6px;color:#eaf0f8;font-size:9px;padding:6px 8px}
 body.light .custom-winner-colors select{background:#f7f9fc;color:#18253a;border-color:#d1dce8}
+
+
+/* v0.3.0 calendar + test build */
+.calendar-actions{align-items:flex-start;flex-wrap:wrap}
+.calendar-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.calendar-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:13px;color:#7f8fa7;font:9px 'DM Mono',monospace}
+.calendar-live-dot{width:7px;height:7px;border-radius:50%;background:#31dc86;box-shadow:0 0 10px #31dc86}
+#refreshCalendarButton{white-space:nowrap}
+#refreshCalendarButton:disabled{opacity:.55;cursor:wait}
+@media(max-width:650px){.calendar-actions{display:flex;flex-direction:column}.calendar-buttons{width:100%}.calendar-buttons .button{flex:1}.calendar-meta{line-height:1.6}}
