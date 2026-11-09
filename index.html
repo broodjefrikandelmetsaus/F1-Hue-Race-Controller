@@ -28,7 +28,7 @@
           <div class="eyebrow"><span class="eyebrow-line"></span> LIGHTS OUT. LIGHTS ON.</div>
           <h1>Laat de race<br><em>de kamer besturen.</em></h1>
           <p>Kies een Grand Prix, laad de officiële tijdlijngegevens en synchroniseer de effecten met de replay.</p>
-          <div class="hero-badges"><span>HISTORISCHE DATA</span><span>2023–2026</span><span>PHILIPS HUE READY</span></div>
+          <div class="hero-badges"><span>HISTORISCHE DATA</span><span>2023–HUIDIG</span><span>PHILIPS HUE READY</span></div>
         </div>
         <div class="hero-art" aria-hidden="true">
           <div class="orb orb-one"></div><div class="orb orb-two"></div>
@@ -49,10 +49,14 @@
               <label>Grand Prix<select id="meetingSelect" aria-label="Grand Prix" disabled><option>Kies eerst een seizoen</option></select></label>
               <label>Sessie<select id="sessionSelect" aria-label="Sessie" disabled><option>Kies eerst een Grand Prix</option></select></label>
             </div>
-            <div class="panel-actions">
-              <button class="button button-primary" id="loadRaceButton" disabled><span>↗</span> Laad race-events</button>
+            <div class="panel-actions calendar-actions">
+              <div class="calendar-buttons">
+                <button class="button button-primary" id="loadRaceButton" disabled><span>↗</span> Laad race-events</button>
+                <button class="button button-secondary" id="refreshCalendarButton" type="button">↻ Kalender verversen</button>
+              </div>
               <span id="dataStatus" class="subtle-status">Seizoenskalender ophalen…</span>
             </div>
+            <div class="calendar-meta"><span class="calendar-live-dot"></span><span id="calendarUpdated">Automatische controle elke 15 minuten</span><span>OpenF1 werkt het sessieschema periodiek bij</span></div>
           </section>
 
           <section class="stats-grid" aria-label="Race-statistieken">
@@ -142,7 +146,7 @@
           </section>
         </aside>
       </section>
-      <footer class="footer"><span>F1 HUE RACE CONTROLLER <b>v0.2.0</b></span><span>Data: OpenF1 · Niet-officiële fanapp</span><a href="https://openf1.org/" target="_blank" rel="noreferrer">OpenF1 info ↗</a></footer>
+      <footer class="footer"><span>F1 HUE RACE CONTROLLER <b>v0.3.0-test</b></span><span>Data: OpenF1 · Niet-officiële fanapp</span><a href="https://openf1.org/" target="_blank" rel="noreferrer">OpenF1 info ↗</a></footer>
     </main>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
