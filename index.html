@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d18">
+  <meta name="description" content="F1 Hue Race Controller — synchroniseer race-events met je replay en Philips Hue.">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+  <title>F1 Hue Race Controller</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="F1 Hue Race Controller home">
+        <span class="brand-mark">F1</span>
+        <span><strong>HUE RACE</strong><small>CONTROLLER</small></span>
+      </a>
+      <div class="topbar-right">
+        <span class="status-pill"><i class="status-dot"></i> REPLAY MODE</span>
+        <button class="icon-button" id="themeButton" title="Thema wisselen" aria-label="Thema wisselen">◐</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-line"></span> LIGHTS OUT. LIGHTS ON.</div>
+          <h1>Laat de race<br><em>de kamer besturen.</em></h1>
+          <p>Kies een Grand Prix, laad de officiële tijdlijngegevens en synchroniseer de effecten met de replay.</p>
+          <div class="hero-badges"><span>HISTORISCHE DATA</span><span>2023–2026</span><span>PHILIPS HUE READY</span></div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="orb orb-one"></div><div class="orb orb-two"></div>
+          <div class="track"><span></span></div>
+          <div class="hero-number">01<span>/ 26</span></div>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="main-column">
+          <section class="panel race-panel">
+            <div class="panel-heading">
+              <div><div class="section-kicker">01 / RACE SELECTEREN</div><h2>Kies je replay</h2></div>
+              <span class="live-free-pill"><span></span> HISTORISCH & GRATIS</span>
+            </div>
+            <div class="selector-grid">
+              <label>Seizoen<select id="yearSelect" aria-label="Seizoen"></select></label>
+              <label>Grand Prix<select id="meetingSelect" aria-label="Grand Prix" disabled><option>Kies eerst een seizoen</option></select></label>
+              <label>Sessie<select id="sessionSelect" aria-label="Sessie" disabled><option>Kies eerst een Grand Prix</option></select></label>
+            </div>
+            <div class="panel-actions">
+              <button class="button button-primary" id="loadRaceButton" disabled><span>↗</span> Laad race-events</button>
+              <span id="dataStatus" class="subtle-status">Seizoenskalender ophalen…</span>
+            </div>
+          </section>
+
+          <section class="stats-grid" aria-label="Race-statistieken">
+            <div class="stat-card"><span class="stat-label">EVENTS GELADEN</span><strong id="statEvents">—</strong><small>in deze sessie</small></div>
+            <div class="stat-card"><span class="stat-label">VLAGSIGNALEN</span><strong id="statFlags">—</strong><small>race control</small></div>
+            <div class="stat-card"><span class="stat-label">PITSTOPS</span><strong id="statPits">—</strong><small>gedetecteerd</small></div>
+            <div class="stat-card"><span class="stat-label">INHAALACTIES</span><strong id="statOvertakes">—</strong><small>databron kan incompleet zijn</small></div>
+          </section>
+
+          <section class="panel player-panel">
+            <div class="panel-heading">
+              <div><div class="section-kicker">02 / REPLAY-SYNCHRONISATIE</div><h2>Race timeline</h2></div>
+              <span class="mode-chip" id="playerMode">WACHT OP RACE</span>
+            </div>
+            <div class="now-playing">
+              <div class="race-visual"><span class="race-flag">🏁</span><span class="visual-rings"></span></div>
+              <div class="now-copy"><strong id="selectedRaceName">Nog geen race geselecteerd</strong><span id="selectedSessionName">Selecteer hierboven een sessie om te beginnen</span></div>
+              <div class="clock" id="clockDisplay">00:00</div>
+            </div>
+            <div class="timeline-wrap">
+              <div class="timeline-labels"><span id="timelineStart">00:00</span><span id="timelineEnd">—</span></div>
+              <input type="range" min="0" max="100" value="0" id="timelineSlider" disabled aria-label="Race tijdlijn">
+              <div class="timeline-ticks" id="timelineTicks"></div>
+            </div>
+            <div class="player-controls">
+              <button class="button button-primary play-button" id="playButton" disabled>▶ Start synchronisatie</button>
+              <button class="button button-secondary" id="pauseButton" disabled>Ⅱ Pauze</button>
+              <button class="button button-ghost" id="resetButton" disabled>↺ Reset</button>
+              <button class="button button-ghost" id="lightsOutButton" disabled>● Markeer lights out</button>
+            </div>
+            <div class="sync-note"><span class="info-icon">i</span><span>Start de racevideo op je tv en druk bij de startlichten op <b>Start synchronisatie</b>. De tijdlijn volgt daarna de replay; gebruik de offset om te finetunen.</span></div>
+          </section>
+
+          <section class="panel events-panel">
+            <div class="panel-heading">
+              <div><div class="section-kicker">03 / RACE CONTROL</div><h2>Gebeurtenissen</h2></div>
+              <div class="event-filter"><select id="eventFilter" aria-label="Filter events"><option value="all">Alle events</option><option value="flags">Vlaggen & race control</option><option value="pit">Pitstops</option><option value="overtake">Inhaalacties</option><option value="other">Overige</option></select></div>
+            </div>
+            <div id="eventsList" class="events-list">
+              <div class="empty-state"><span class="empty-icon">⌁</span><strong>De tijdlijn is nog leeg</strong><p>Kies een Grand Prix en laad de race-events.</p></div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="side-column">
+          <section class="panel hue-panel">
+            <div class="panel-heading">
+              <div><div class="section-kicker">04 / VERLICHTING</div><h2>Philips Hue</h2></div>
+              <span class="connection-state"><i></i> NIET GEKOPPELD</span>
+            </div>
+            <div class="bridge-visual">
+              <div class="bridge-ring"></div><div class="bridge-core"></div>
+              <span class="bridge-light light-a"></span><span class="bridge-light light-b"></span><span class="bridge-light light-c"></span>
+            </div>
+            <div class="bridge-copy"><strong>Je Hue Bridge is nog niet verbonden</strong><p>Deze build kan de race-events en effecten alvast klaarzetten. De beveiligde Hue-accountkoppeling volgt in de volgende bouwstap.</p></div>
+            <button class="button button-disabled full-width" disabled>Hue koppelen — binnenkort</button>
+            <div class="preview-label"><span>LICHTEFFECT-PREVIEW</span><span id="previewName">STANDBY · RED BULL</span></div>
+            <div class="light-preview" id="lightPreview"><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="preview-caption" id="previewCaption">Visuele preview — er worden nog geen fysieke lampen aangestuurd.</div>
+          </section>
+
+          <section class="panel offset-panel">
+            <div class="panel-heading"><div><div class="section-kicker">05 / FINETUNING</div><h2>Buffer-offset</h2></div><span class="offset-value" id="offsetValue">0s</span></div>
+            <p>Loopt het lichteffect voor of achter op de tv? Stel hier de correctie in.</p>
+            <div class="offset-controls">
+              <button data-offset="-10">−10</button><button data-offset="-1">−1</button><button data-offset="1">+1</button><button data-offset="10">+10</button>
+            </div>
+            <div class="offset-direction"><span>LICHTEN LATER</span><span>LICHTEN EERDER</span></div>
+            <div class="range-row"><input type="range" min="-10" max="10" step="1" value="0" id="offsetSlider" aria-label="Buffer-offset"></div>
+          </section>
+
+          <section class="panel effects-panel">
+            <div class="panel-heading"><div><div class="section-kicker">06 / EFFECTEN</div><h2>Race-signalen</h2></div><span class="tiny-tag">VOORINSTELLINGEN</span></div>
+            <div class="effect-list">
+              <div class="effect-row"><span class="effect-swatch green"></span><div><b>Groene vlag</b><small>3× groen knipperen</small></div><button data-preview="GREEN" class="preview-button" aria-label="Preview groene vlag">▶</button></div>
+              <div class="effect-row"><span class="effect-swatch yellow"></span><div><b>Gele vlag</b><small>3× geel knipperen</small></div><button data-preview="YELLOW" class="preview-button" aria-label="Preview gele vlag">▶</button></div>
+              <div class="effect-row"><span class="effect-swatch red"></span><div><b>Rode vlag</b><small>3× rood knipperen</small></div><button data-preview="RED" class="preview-button" aria-label="Preview rode vlag">▶</button></div>
+              <div class="effect-row"><span class="effect-swatch double"></span><div><b>Groen / geel</b><small>Afwisselend 3×</small></div><button data-preview="GREEN_YELLOW" class="preview-button" aria-label="Preview groen gele vlag">▶</button></div>
+              <div class="effect-row"><span class="effect-swatch checkered"></span><div><b>Finishvlag</b><small>Geblokt zwart / wit</small></div><button data-preview="CHEQUERED" class="preview-button" aria-label="Preview finishvlag">▶</button></div>
+              <div class="effect-row"><span class="effect-swatch blue"></span><div><b>Blauwe vlag</b><small>Blauw pulse-effect</small></div><button data-preview="BLUE" class="preview-button" aria-label="Preview blauwe vlag">▶</button></div>
+            </div>
+            <div class="standby-row"><div><b>Stand-by modus</b><small>Red Bull-kleuren als er geen event is</small></div><label class="switch"><input type="checkbox" id="standbyToggle" checked><span></span></label></div>
+          </section>
+
+          <section class="panel results-panel" id="resultsPanel">
+            <div class="panel-heading"><div><div class="section-kicker">07 / UITSLAG</div><h2>Podium</h2></div></div>
+            <div class="podium-empty">De uitslag verschijnt zodra je een sessie hebt geladen.</div>
+          </section>
+        </aside>
+      </section>
+      <footer class="footer"><span>F1 HUE RACE CONTROLLER <b>v0.2.0</b></span><span>Data: OpenF1 · Niet-officiële fanapp</span><a href="https://openf1.org/" target="_blank" rel="noreferrer">OpenF1 info ↗</a></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
