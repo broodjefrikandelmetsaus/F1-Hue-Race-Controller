@@ -32,6 +32,8 @@ const EVENT_META = {
   FLAG_CHEQUERED:{label:"Finishvlag",icon:"🏁",tone:"orange",color:"#e5eaf2"},
   SAFETY_CAR:{label:"Safety Car",icon:"🚗",tone:"yellow",color:"#ffd34e"},
   VSC:{label:"Virtual Safety Car",icon:"⚠️",tone:"yellow",color:"#ffd34e"},
+  VSC_END:{label:"VSC beëindigd",icon:"🟢",tone:"green",color:"#31dc86"},
+  SAFETY_CAR_END:{label:"Safety Car naar binnen",icon:"🟢",tone:"green",color:"#31dc86"},
   PIT_STOP:{label:"Pitstop",icon:"🛠️",tone:"blue",color:"#4d87ff"},
   OVERTAKE:{label:"Inhaalactie",icon:"↗",tone:"green",color:"#31dc86"},
   PENALTY:{label:"Straf / waarschuwing",icon:"⚖️",tone:"red",color:"#ff4d5d"},
@@ -81,12 +83,15 @@ function raceControlType(item) {
   if (flag.includes("CHEQUERED") || msg.includes("CHEQUERED")) return "FLAG_CHEQUERED";
   if (flag.includes("BLACK_AND_WHITE") || msg.includes("BLACK AND WHITE")) return "FLAG_BLACK_WHITE";
   if (flag.includes("DOUBLE_YELLOW") || msg.includes("DOUBLE YELLOW")) return "FLAG_DOUBLE_YELLOW";
-  if (flag === "GREEN" || msg.includes("GREEN FLAG")) return "FLAG_GREEN";
+  if (flag.includes("GREEN_AND_YELLOW") || msg.includes("GREEN AND YELLOW")) return "FLAG_GREEN_YELLOW";
+  if (flag === "GREEN" || msg.includes("GREEN FLAG") || msg.includes("GREEN LIGHT")) return "FLAG_GREEN";
   if (flag === "YELLOW" || msg.includes("YELLOW FLAG")) return "FLAG_YELLOW";
   if (flag === "RED" || msg.includes("RED FLAG")) return "FLAG_RED";
   if (flag === "BLUE" || msg.includes("BLUE FLAG")) return "FLAG_BLUE";
   if (flag === "BLACK" || msg.includes("BLACK FLAG")) return "FLAG_BLACK";
+  if (msg.includes("VIRTUAL SAFETY CAR END") || msg.includes("VSC END") || msg.includes("VSC ENDING")) return "VSC_END";
   if (msg.includes("VIRTUAL SAFETY CAR") || msg.includes("VSC")) return "VSC";
+  if (msg.includes("SAFETY CAR") && /IN THIS LAP|ENDING|WITHDRAWN|END OF/.test(msg)) return "SAFETY_CAR_END";
   if (msg.includes("SAFETY CAR") || msg.includes("SC DEPLOYED")) return "SAFETY_CAR";
   if (/PENALTY|DRIVE THROUGH|STOP.?GO|TIME PENALTY|DISQUALIF/.test(msg)) return "PENALTY";
   if (/CRASH|COLLISION|SPUN|STOPPED|DEBRIS|TRACK LIMIT|INCIDENT|RETIRED/.test(msg)) return "INCIDENT";
@@ -110,7 +115,6 @@ function addEvent(list, raw, type, sessionStart, extra={}) {
   });
 }
 function isVisible(event) {
-  if (!state.enabled.has(event.type)) return false;
   const filter = $("eventFilter").value;
   if (filter === "flags") return event.type.startsWith("FLAG_") || ["SAFETY_CAR","VSC","SESSION"].includes(event.type);
   if (filter === "pit") return event.type === "PIT_STOP" || event.type === "TYRE_CHANGE";
