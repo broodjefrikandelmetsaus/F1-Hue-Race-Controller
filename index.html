@@ -126,13 +126,11 @@
 
           <section class="panel effects-panel">
             <div class="panel-heading"><div><div class="section-kicker">06 / EFFECTEN</div><h2>Race-signalen</h2></div><span class="tiny-tag">VOORINSTELLINGEN</span></div>
-            <div class="effect-list">
-              <div class="effect-row"><span class="effect-swatch green"></span><div><b>Groene vlag</b><small>3× groen knipperen</small></div><button data-preview="GREEN" class="preview-button" aria-label="Preview groene vlag">▶</button></div>
-              <div class="effect-row"><span class="effect-swatch yellow"></span><div><b>Gele vlag</b><small>3× geel knipperen</small></div><button data-preview="YELLOW" class="preview-button" aria-label="Preview gele vlag">▶</button></div>
-              <div class="effect-row"><span class="effect-swatch red"></span><div><b>Rode vlag</b><small>3× rood knipperen</small></div><button data-preview="RED" class="preview-button" aria-label="Preview rode vlag">▶</button></div>
-              <div class="effect-row"><span class="effect-swatch double"></span><div><b>Groen / geel</b><small>Afwisselend 3×</small></div><button data-preview="GREEN_YELLOW" class="preview-button" aria-label="Preview groen gele vlag">▶</button></div>
-              <div class="effect-row"><span class="effect-swatch checkered"></span><div><b>Finishvlag</b><small>Geblokt zwart / wit</small></div><button data-preview="CHEQUERED" class="preview-button" aria-label="Preview finishvlag">▶</button></div>
-              <div class="effect-row"><span class="effect-swatch blue"></span><div><b>Blauwe vlag</b><small>Blauw pulse-effect</small></div><button data-preview="BLUE" class="preview-button" aria-label="Preview blauwe vlag">▶</button></div>
+            <div class="effect-list" id="effectList"></div>
+            <div class="custom-winner-colors">
+              <div class="custom-color-heading">KLEUREN WINNAAR</div>
+              <label>Teamkleur <input id="winnerTeamColor" type="color" value="#e52e42"></label>
+              <label>Landkleur <input id="winnerCountryColor" type="color" value="#ffffff"></label>
             </div>
             <div class="standby-row"><div><b>Stand-by modus</b><small>Red Bull-kleuren als er geen event is</small></div><label class="switch"><input type="checkbox" id="standbyToggle" checked><span></span></label></div>
           </section>
