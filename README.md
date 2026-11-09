@@ -33,6 +33,10 @@ OpenF1: https://openf1.org/
 3. De workflow in `.github/workflows/deploy-pages.yml` bouwt en publiceert de site na een push naar `main`.
 4. De website staat daarna op: https://broodjefrikandelmetsaus.github.io/F1-Hue-Race-Controller/
 
+## Status
+
+De GitHub Pages-workflow mag Pages automatisch inschakelen wanneer dit nog niet is gebeurd.
+
 ## Lokale test
 
 Open `index.html` via een eenvoudige lokale webserver (bijvoorbeeld VS Code Live Server). De API vraagt een internetverbinding.
