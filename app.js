@@ -139,7 +139,7 @@ async function loadMeetings(year) {
   setStatus("Grand Prix-kalender ophalen…",true);
   try {
     const meetings=await api("meetings",{year});
-    state.meetings=meetings.filter(m=>!m.is_cancelled).sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
+    state.meetings=meetings.filter(m=>!m.is_cancelled && new Date(m.date_start)<=new Date()).sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
     $("meetingSelect").innerHTML='<option value="">Selecteer Grand Prix</option>'+state.meetings.map(m=>'<option value="'+m.meeting_key+'">'+escapeHtml(m.meeting_name)+' · '+escapeHtml(m.location||m.country_name||"")+'</option>').join("");
     $("meetingSelect").disabled=false;
     setStatus(state.meetings.length+" Grand Prix-weekends gevonden");
@@ -160,7 +160,8 @@ async function loadSessions(meetingKey) {
   setStatus("Sessies ophalen…",true);
   try {
     const sessions=await api("sessions",{meeting_key:meetingKey});
-    state.sessions=sessions.sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
+    const now=Date.now();
+    state.sessions=sessions.filter(s=>new Date(s.date_end||s.date_start).getTime()<=now).sort((a,b)=>new Date(b.date_start)-new Date(a.date_start));
     $("sessionSelect").innerHTML='<option value="">Selecteer sessie</option>'+state.sessions.map(s=>'<option value="'+s.session_key+'">'+escapeHtml(s.session_name||s.session_type)+' · '+new Date(s.date_start).toLocaleDateString("nl-NL")+'</option>').join("");
     $("sessionSelect").disabled=false;
     const preferred=state.sessions.find(s=>String(s.session_type).toLowerCase()==="race") || state.sessions.find(s=>String(s.session_type).toLowerCase()==="sprint") || state.sessions[0];
