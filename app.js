@@ -7,6 +7,16 @@ const state = {
   offset: Number(localStorage.getItem("fh_offset") || 0),
   standby: localStorage.getItem("fh_standby") !== "false",
   enabled: new Set(JSON.parse(localStorage.getItem("fh_enabled") || '["FLAG_GREEN","FLAG_YELLOW","FLAG_RED","FLAG_CHEQUERED","SAFETY_CAR","VSC","PIT_STOP","OVERTAKE","PENALTY","INCIDENT","FASTEST_LAP","TYRE_CHANGE"]')),
+  effects: JSON.parse(localStorage.getItem("fh_effects") || "null") || {
+    GREEN:{enabled:true,colors:["#31dc86"]},
+    YELLOW:{enabled:true,colors:["#ffd34e"]},
+    RED:{enabled:true,colors:["#ff4d5d"]},
+    GREEN_YELLOW:{enabled:true,colors:["#31dc86","#ffd34e"]},
+    CHEQUERED:{enabled:true,colors:["#eaf0f8","#192338"]},
+    BLUE:{enabled:true,colors:["#4d87ff"]}
+  },
+  winnerTeamColor: localStorage.getItem("fh_winner_team") || "#e52e42",
+  winnerCountryColor: localStorage.getItem("fh_winner_country") || "#ffffff",
   playing: false, anchor: 0, pausedAt: 0, current: 0, fired: new Set(), timer: null, toastTimer: null
 };
 const EVENT_META = {
@@ -270,16 +280,61 @@ function seek(seconds){
   if(wasPlaying)startPlayer();
 }
 function triggerEvent(event){
-  const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="OVERTAKE"?"GREEN":event.type==="PIT_STOP"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":"GREEN";
-  showPreview(previewType,event.label+" · "+formatClock(event.seconds));
+  const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="OVERTAKE"?"GREEN":event.type==="PIT_STOP"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":null;
+  if(previewType && state.effects[previewType]?.enabled) showPreview(previewType,event.label+" · "+formatClock(event.seconds));
+  else $("previewCaption").textContent=event.label+" · Effect uitgeschakeld of nog geen Hue-koppeling.";
   toast(event.label+": "+(event.detail||"Race Control"));
 }
-function showPreview(type,caption){
-  const colors={GREEN:["#31dc86"],YELLOW:["#ffd34e"],RED:["#ff4d5d"],GREEN_YELLOW:["#31dc86","#ffd34e"],CHEQUERED:["#eaf0f8","#192338"],BLUE:["#4d87ff"]};
-  const palette=colors[type]||["#16315c","#e52e42","#16315c"];
-  $("lightPreview").querySelectorAll("span").forEach((el,i)=>{el.style.background=palette[i%palette.length];});
+function renderEffectSettings(){
+  const items=[
+    ["GREEN","Groene vlag","3× groen knipperen"],
+    ["YELLOW","Gele vlag","3× geel knipperen"],
+    ["RED","Rode vlag","3× rood knipperen"],
+    ["GREEN_YELLOW","Groen / geel","Afwisselend 3×"],
+    ["CHEQUERED","Finishvlag","Geblokt zwart / wit"],
+    ["BLUE","Blauwe vlag","Blauw pulse-effect"]
+  ];
+  $("effectList").innerHTML=items.map(([key,label,desc])=>{
+    const setting=state.effects[key]||{enabled:true,colors:["#31dc86"]};
+    const colors=setting.colors||["#31dc86"];
+    const colorInputs=colors.map((color,index)=>'<input type="color" aria-label="'+label+' kleur '+(index+1)+'" data-effect-color="'+key+'" data-color-index="'+index+'" value="'+color+'">').join("");
+    return '<div class="effect-row"><span class="effect-swatch '+key.toLowerCase()+'"></span><div class="effect-main"><b>'+label+'</b><small>'+desc+'</small><div class="effect-colors">'+colorInputs+'</div></div><label class="mini-switch"><input type="checkbox" data-effect-enabled="'+key+'" '+(setting.enabled?"checked":"")+'><span></span></label><button data-preview="'+key+'" class="preview-button" aria-label="Preview '+label+'">▶</button></div>';
+  }).join("");
+  $("effectList").querySelectorAll("[data-effect-enabled]").forEach(input=>input.addEventListener("change",()=>{
+    const key=input.dataset.effectEnabled;
+    state.effects[key].enabled=input.checked;
+    saveEffects();
+  }));
+  $("effectList").querySelectorAll("[data-effect-color]").forEach(input=>input.addEventListener("input",()=>{
+    const key=input.dataset.effectColor,index=Number(input.dataset.colorIndex);
+    state.effects[key].colors[index]=input.value;
+    saveEffects();
+  }));
+  $("effectList").querySelectorAll("[data-preview]").forEach(button=>button.addEventListener("click",()=>showPreview(button.dataset.preview,"Handmatige effecttest",true)));
+}
+function saveEffects(){localStorage.setItem("fh_effects",JSON.stringify(state.effects));}
+function showPreview(type,caption,force=false){
+  const setting=state.effects[type]||{enabled:true,colors:["#31dc86"]};
+  if(!force&&!setting.enabled)return;
+  const palette=setting.colors||["#31dc86"];
+  $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
+    el.style.background=palette[index%palette.length];
+    el.style.animation="none";
+    void el.offsetWidth;
+    el.style.animation="lightFlash .42s ease-in-out 3";
+    el.style.animationDelay=(index*35)+"ms";
+  });
   $("previewName").textContent=type.replaceAll("_"," ");
   $("previewCaption").textContent=(caption?caption+" · ":"")+"Visuele preview — Hue Bridge nog niet gekoppeld.";
+}
+function showStandbyPreview(){
+  const colors=["#e52e42","#102b59","#e52e42","#102b59","#e52e42"];
+  $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
+    el.style.background=colors[index];
+    el.style.animation="none";
+  });
+  $("previewName").textContent="STANDBY · RED BULL";
+  $("previewCaption").textContent="Stand-by kleuren klaar · Hue Bridge nog niet gekoppeld.";
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
@@ -300,7 +355,13 @@ $("offsetSlider").addEventListener("input",e=>updateOffset(e.target.value));
 document.querySelectorAll("[data-offset]").forEach(b=>b.addEventListener("click",()=>updateOffset(state.offset+Number(b.dataset.offset))));
 document.querySelectorAll("[data-preview]").forEach(b=>b.addEventListener("click",()=>showPreview(b.dataset.preview,"Handmatige effecttest")));
 $("standbyToggle").checked=state.standby;
-$("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));showPreview(state.standby?"GREEN_YELLOW":"BLUE",state.standby?"Stand-by staat aan":"Stand-by staat uit");});
+$("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));state.standby?showStandbyPreview():showPreview("BLUE","Stand-by staat uit",true);});
+$("winnerTeamColor").value=state.winnerTeamColor;
+$("winnerCountryColor").value=state.winnerCountryColor;
+$("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamColor=e.target.value;localStorage.setItem("fh_winner_team",e.target.value);});
+$("winnerCountryColor").addEventListener("input",e=>{state.winnerCountryColor=e.target.value;localStorage.setItem("fh_winner_country",e.target.value);});
+renderEffectSettings();
+if(state.standby)showStandbyPreview();
 $("themeButton").addEventListener("click",()=>document.body.classList.toggle("light"));
 updateOffset(state.offset);
 loadYears();
