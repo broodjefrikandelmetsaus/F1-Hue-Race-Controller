@@ -292,7 +292,7 @@ function seek(seconds){
 function triggerEvent(event){
   if(event.type==="FLAG_CHEQUERED" && state.effects.CHEQUERED?.enabled) showWinnerPreview(event);
   else {
-    const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="OVERTAKE"?"GREEN":event.type==="PIT_STOP"||event.type==="TYRE_CHANGE"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":event.type==="VSC_END"||event.type==="SAFETY_CAR_END"?"GREEN":null;
+    const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_GREEN_YELLOW"?"GREEN_YELLOW":event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="OVERTAKE"?"GREEN":event.type==="PIT_STOP"||event.type==="TYRE_CHANGE"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":event.type==="VSC_END"||event.type==="SAFETY_CAR_END"?"GREEN":null;
     if(previewType && state.effects[previewType]?.enabled) showPreview(previewType,event.label+" · "+formatClock(event.seconds));
     else $("previewCaption").textContent=event.label+" · Effect uitgeschakeld of nog geen Hue-koppeling.";
   }
