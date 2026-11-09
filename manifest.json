@@ -1,0 +1,9 @@
+{
+  "name": "F1 Hue Race Controller",
+  "short_name": "F1 Hue",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#080d18",
+  "theme_color": "#080d18",
+  "description": "Synchroniseer historische F1 race-events met Philips Hue."
+}
