@@ -212,9 +212,13 @@ function renderEvents(){
 }
 function renderResults(){
   const box=$("resultsPanel");
-  if(!state.results.length){box.querySelector(".podium-empty")?.remove();if(!box.querySelector(".podium-list"))box.insertAdjacentHTML("beforeend",'<div class="podium-empty">Uitslag nog niet gepubliceerd in de databron.</div>');return;}
+  box.querySelector(".podium-empty")?.remove();
+  box.querySelector(".podium-list")?.remove();
+  if(!state.results.length){
+    box.insertAdjacentHTML("beforeend",'<div class="podium-empty">Uitslag nog niet gepubliceerd in de databron.</div>');
+    return;
+  }
   const top=state.results.slice(0,3);
-  box.querySelector(".podium-empty")?.remove();box.querySelector(".podium-list")?.remove();
   box.insertAdjacentHTML("beforeend",'<div class="podium-list">'+top.map((r,i)=>'<div class="podium-row"><span class="podium-place">'+(r.position||i+1)+'</span><div><strong>'+escapeHtml(driverName(r.driver_number))+'</strong><small>'+escapeHtml(driverTeam(r.driver_number))+'</small></div></div>').join("")+'</div>');
 }
 function configurePlayer(){
