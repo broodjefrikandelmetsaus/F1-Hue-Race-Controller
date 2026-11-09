@@ -17,6 +17,8 @@ const state = {
   },
   winnerTeamColor: localStorage.getItem("fh_winner_team") || "#e52e42",
   winnerCountryColor: localStorage.getItem("fh_winner_country") || "#ffffff",
+  winnerColorMode: localStorage.getItem("fh_winner_mode") || "team",
+  winnerTeamCustom: localStorage.getItem("fh_winner_team") !== null,
   playing: false, anchor: 0, pausedAt: 0, current: 0, fired: new Set(), timer: null, toastTimer: null
 };
 const EVENT_META = {
@@ -191,8 +193,12 @@ async function loadRaceEvents() {
     (loaded.race_control||[]).forEach(item=>addEvent(events,item,raceControlType(item),start,{detail:item.message||item.flag||"",source:"Race Control"}));
     (loaded.pit||[]).forEach(item=>addEvent(events,item,"PIT_STOP",start,{detail:driverName(item.driver_number)+" · "+(item.stop_duration!=null?Number(item.stop_duration).toFixed(1)+"s stop":"pitstop"),source:"Pit"}));
     (loaded.overtakes||[]).forEach(item=>addEvent(events,item,"OVERTAKE",start,{label:"Inhaalactie",detail:driverName(item.overtaking_driver_number)+" passeert "+driverName(item.overtaken_driver_number),source:"Overtakes"}));
-    (loaded.stints||[]).forEach(item=>addEvent(events,{...item,date:item.date_start},"TYRE_CHANGE",start,{detail:driverName(item.driver_number)+" · "+(item.compound||"bandenwissel")+" · stint "+(item.stint_number||""),source:"Stints"}));
     const laps=loaded.laps||[];
+    const lapStarts=new Map(laps.filter(l=>l.date_start!=null).map(l=>[String(l.driver_number)+"-"+String(l.lap_number),l]));
+    (loaded.stints||[]).forEach(item=>{
+      const firstLap=lapStarts.get(String(item.driver_number)+"-"+String(item.lap_start));
+      if(firstLap?.date_start)addEvent(events,{...item,date:firstLap.date_start,lap_number:item.lap_start},"TYRE_CHANGE",start,{detail:driverName(item.driver_number)+" · "+(item.compound||"bandenwissel")+" · stint "+(item.stint_number||""),source:"Stints"});
+    });
     const fastest=laps.filter(l=>Number.isFinite(Number(l.lap_duration)) && l.lap_duration>0).sort((a,b)=>a.lap_duration-b.lap_duration)[0];
     if(fastest)addEvent(events,{...fastest,date:fastest.date_start},"FASTEST_LAP",start,{detail:driverName(fastest.driver_number)+" · "+Number(fastest.lap_duration).toFixed(3)+"s · ronde "+fastest.lap_number,source:"Laps"});
     state.events=events.sort((a,b)=>a.seconds-b.seconds);
@@ -280,10 +286,33 @@ function seek(seconds){
   if(wasPlaying)startPlayer();
 }
 function triggerEvent(event){
-  const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="OVERTAKE"?"GREEN":event.type==="PIT_STOP"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":null;
-  if(previewType && state.effects[previewType]?.enabled) showPreview(previewType,event.label+" · "+formatClock(event.seconds));
-  else $("previewCaption").textContent=event.label+" · Effect uitgeschakeld of nog geen Hue-koppeling.";
+  if(event.type==="FLAG_CHEQUERED" && state.effects.CHEQUERED?.enabled) showWinnerPreview(event);
+  else {
+    const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="OVERTAKE"?"GREEN":event.type==="PIT_STOP"||event.type==="TYRE_CHANGE"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":event.type==="VSC_END"||event.type==="SAFETY_CAR_END"?"GREEN":null;
+    if(previewType && state.effects[previewType]?.enabled) showPreview(previewType,event.label+" · "+formatClock(event.seconds));
+    else $("previewCaption").textContent=event.label+" · Effect uitgeschakeld of nog geen Hue-koppeling.";
+  }
   toast(event.label+": "+(event.detail||"Race Control"));
+}
+function showWinnerPreview(event){
+  const winner=state.results.find(result=>Number(result.position)===1)||state.results[0];
+  const driver=winner?state.drivers.get(Number(winner.driver_number)):null;
+  const name=winner?driverName(winner.driver_number):"Winnaar";
+  const team=winner?driverTeam(winner.driver_number):"";
+  let color=state.winnerCountryColor;
+  if(state.winnerColorMode==="team"){
+    const providerColor=driver?.team_colour ? "#"+String(driver.team_colour).replace("#","") : null;
+    color=state.winnerTeamCustom?state.winnerTeamColor:(providerColor||state.winnerTeamColor);
+  }
+  $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
+    el.style.background=color;
+    el.style.animation="none";
+    void el.offsetWidth;
+    el.style.animation="lightFlash .42s ease-in-out 3";
+    el.style.animationDelay=(index*35)+"ms";
+  });
+  $("previewName").textContent="WINNAAR · "+name;
+  $("previewCaption").textContent=(team?team+" · ":"")+(state.winnerColorMode==="team"?"Teamkleur":"Eigen landkleur")+" · Visuele preview — Hue Bridge nog niet gekoppeld.";
 }
 function renderEffectSettings(){
   const items=[
@@ -360,6 +389,9 @@ $("winnerTeamColor").value=state.winnerTeamColor;
 $("winnerCountryColor").value=state.winnerCountryColor;
 $("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamColor=e.target.value;localStorage.setItem("fh_winner_team",e.target.value);});
 $("winnerCountryColor").addEventListener("input",e=>{state.winnerCountryColor=e.target.value;localStorage.setItem("fh_winner_country",e.target.value);});
+$("winnerColorMode").value=state.winnerColorMode;
+$("winnerColorMode").addEventListener("change",e=>{state.winnerColorMode=e.target.value;localStorage.setItem("fh_winner_mode",e.target.value);});
+$("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamCustom=true;});
 renderEffectSettings();
 if(state.standby)showStandbyPreview();
 $("themeButton").addEventListener("click",()=>document.body.classList.toggle("light"));
