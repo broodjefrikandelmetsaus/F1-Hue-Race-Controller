@@ -21,3 +21,5 @@
 .light-preview span{animation-fill-mode:both}
 @keyframes lightFlash{0%,100%{opacity:.32;filter:brightness(.7)}45%{opacity:1;filter:brightness(1.7)}}
 @media(max-width:480px){.effect-row{gap:7px}.effect-colors input[type=color]{width:22px}}
+.custom-winner-colors select{background:#0a1322;border:1px solid #30425e;border-radius:6px;color:#eaf0f8;font-size:9px;padding:6px 8px}
+body.light .custom-winner-colors select{background:#f7f9fc;color:#18253a;border-color:#d1dce8}
