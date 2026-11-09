@@ -1,0 +1,20 @@
+{
+  "name": "f1-hue-race-controller",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Replay-first F1 Hue lighting controller",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "android:sync": "npm run build && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}
