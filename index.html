@@ -105,14 +105,14 @@
           <section class="panel hue-panel">
             <div class="panel-heading">
               <div><div class="section-kicker">04 / VERLICHTING</div><h2>Philips Hue</h2></div>
-              <span class="connection-state"><i></i> NIET GEKOPPELD</span>
+              <span class="connection-state" id="hueConnectionState"><i></i> STATUS CONTROLEREN</span>
             </div>
             <div class="bridge-visual">
               <div class="bridge-ring"></div><div class="bridge-core"></div>
               <span class="bridge-light light-a"></span><span class="bridge-light light-b"></span><span class="bridge-light light-c"></span>
             </div>
-            <div class="bridge-copy"><strong>Je Hue Bridge is nog niet verbonden</strong><p>Deze build kan de race-events en effecten alvast klaarzetten. De beveiligde Hue-accountkoppeling volgt in de volgende bouwstap.</p></div>
-            <button class="button button-disabled full-width" disabled>Hue koppelen — binnenkort</button>
+            <div class="bridge-copy"><strong id="hueConnectionTitle">Hue-verbindingsstatus controleren…</strong><p id="hueConnectionCopy">De app controleert de beveiligde Hue-accountkoppeling.</p></div>
+            <button class="button button-disabled full-width" id="hueConnectButton" disabled>Status controleren…</button>
             <div class="preview-label"><span>LICHTEFFECT-PREVIEW</span><span id="previewName">STANDBY · RED BULL</span></div>
             <div class="light-preview" id="lightPreview"><span></span><span></span><span></span><span></span><span></span></div>
             <div class="preview-caption" id="previewCaption">Visuele preview — er worden nog geen fysieke lampen aangestuurd.</div>
