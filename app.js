@@ -649,6 +649,27 @@ function renderEffectSettings(){
   $("effectList").querySelectorAll("[data-preview]").forEach(button=>button.addEventListener("click",()=>showPreview(button.dataset.preview,"Handmatige effecttest",true)));
 }
 function saveEffects(){localStorage.setItem("fh_effects",JSON.stringify(state.effects));}
+function hexToHueXY(hex){
+  const raw=hex.replace("#","");let rgb=[0,2,4].map(i=>parseInt(raw.slice(i,i+2),16)/255);
+  rgb=rgb.map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));
+  const X=rgb[0]*0.664511+rgb[1]*0.154324+rgb[2]*0.162028;
+  const Y=rgb[0]*0.283881+rgb[1]*0.668433+rgb[2]*0.047685;
+  const Z=rgb[0]*0.000088+rgb[1]*0.072310+rgb[2]*0.986039;
+  const sum=X+Y+Z;return sum?{x:X/sum,y:Y/sum}:{x:0.3127,y:0.329};
+}
+async function sendHueColors(colors){
+  const ids=[...state.selectedHueLights];
+  if(!ids.length){toast("Selecteer eerst Hue-lampen.");return;}
+  let pin=sessionStorage.getItem("fh_hue_pin");
+  if(!pin){pin=prompt("Voer je Hue-toegangscode in om de lampen echt aan te sturen:");if(!pin)return;if(!/^\\d{6}$/.test(pin)){toast("De toegangscode moet 6 cijfers hebben.");return;}sessionStorage.setItem("fh_hue_pin",pin);}
+  const requests=ids.map((id,index)=>{
+    const color=hexToHueXY(colors[index%colors.length]);
+    return fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=light",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({pin,lightIds:[id],color,brightness:35})})
+      .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||"Hue-commando mislukt");return data;});
+  });
+  try{await Promise.all(requests);toast("Hue-effect verzonden naar "+ids.length+" geselecteerde lamp(en).");}
+  catch(error){sessionStorage.removeItem("fh_hue_pin");toast(error.message||"Hue-aansturing mislukt.");}
+}
 function showPreview(type,caption,force=false){
   const setting=state.effects[type]||{enabled:true,colors:["#31dc86"]};
   if(!force&&!setting.enabled)return;
@@ -661,7 +682,8 @@ function showPreview(type,caption,force=false){
     el.style.animationDelay=(index*35)+"ms";
   });
   $("previewName").textContent=type.replaceAll("_"," ");
-  $("previewCaption").textContent=(caption?caption+" · ":"")+"Visuele preview — fysieke Hue-bediening volgt na de Bridge-integratie.";
+  $("previewCaption").textContent=(caption?caption+" · ":"")+"Preview op scherm en geselecteerde Hue-lampen.";
+  if(force || state.playing) sendHueColors(palette);
 }
 function showStandbyPreview(){
   const colors=["#e52e42","#102b59","#e52e42","#102b59","#e52e42"];
@@ -670,7 +692,8 @@ function showStandbyPreview(){
     el.style.animation="none";
   });
   $("previewName").textContent="STANDBY · RED BULL";
-  $("previewCaption").textContent="Stand-by kleuren klaar · fysieke Hue-bediening volgt na de Bridge-integratie.";
+  $("previewCaption").textContent="Red Bull-standbykleuren naar de geselecteerde Hue-lampen.";
+  sendHueColors(colors);
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
