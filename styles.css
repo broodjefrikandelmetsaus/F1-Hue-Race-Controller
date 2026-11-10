@@ -33,3 +33,5 @@ body.light .custom-winner-colors select{background:#f7f9fc;color:#18253a;border-
 #refreshCalendarButton{white-space:nowrap}
 #refreshCalendarButton:disabled{opacity:.55;cursor:wait}
 @media(max-width:650px){.calendar-actions{display:flex;flex-direction:column}.calendar-buttons{width:100%}.calendar-buttons .button{flex:1}.calendar-meta{line-height:1.6}}
+
+.brand-logo{width:48px;height:48px;object-fit:contain;border-radius:12px;filter:drop-shadow(0 0 10px #1caeff40)}.brand{gap:12px}.brand strong{font-size:13px;letter-spacing:.17em}.brand small{letter-spacing:.17em}
