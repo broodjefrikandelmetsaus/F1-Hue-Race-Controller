@@ -970,7 +970,7 @@ $("refreshCalendarButton").addEventListener("click",()=>refreshCalendar(false));
 $("meetingSelect").addEventListener("change",e=>loadSessions(e.target.value));
 $("sessionSelect").addEventListener("change",e=>selectSession(e.target.value));
 $("loadRaceButton").addEventListener("click",loadRaceEvents);
-$("playButton").addEventListener("click",()=>state.playing?pausePlayer():startPlayer());
+$("playButton").addEventListener("click",startPlayer);
 $("pauseButton").addEventListener("click",pausePlayer);
 $("resetButton").addEventListener("click",()=>stopPlayer(true));
 $("lightsOutButton").addEventListener("click",()=>{seek(0);startPlayer();toast("Lights out-markering gezet. Dit is het startpunt van je replay.");});
