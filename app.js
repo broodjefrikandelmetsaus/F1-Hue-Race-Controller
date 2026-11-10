@@ -69,7 +69,7 @@ async function loadHueConnectionStatus() {
     if (status.linked) {
       if (stateEl) { stateEl.textContent = "ACCOUNT GEKOPPELD"; stateEl.classList.add("connected"); }
       if (titleEl) titleEl.textContent = "Je Philips Hue-account is gekoppeld";
-      if (copyEl) copyEl.textContent = "De beveiligde Hue-autorisatie is gevonden. De daadwerkelijke Bridge- en lampbediening wordt in de volgende integratiestap aangesloten.";
+      if (copyEl) copyEl.textContent = "De beveiligde Hue-autorisatie is gevonden. Bij het zoeken naar lampen registreert de app automatisch de Bridge via de Remote API.";
       if (buttonEl) { buttonEl.textContent = "Account gekoppeld · bediening volgt"; buttonEl.disabled = true; }
       const deviceButton = $("hueLoadDevicesButton");
       if (deviceButton) deviceButton.disabled = false;
