@@ -708,25 +708,26 @@ async function sendHueColors(colors, mode="pulse"){
   if(!pin)return;
   try {
     await captureHueOriginalStates(ids, pin);
-    const sendOne = (id, color, brightness, on=true) => {
-      const payload = {lightIds:[id], on};
+    const sendAll = (color, brightness, on=true) => {
+      const payload = {lightIds:ids, on};
       if (color) payload.color = hexToHueXY(color);
       if (on && brightness != null) payload.brightness = brightness;
       return postHueCommand(pin, payload);
     };
     if(mode==="steady"){
-      await Promise.all(ids.map((id,index)=>sendOne(id,colors[index%colors.length],82,true)));
+      await sendAll(colors[0],82,true);
       toast("Stand-bykleuren toegepast op "+ids.length+" lamp(en).");
       return;
     }
     const pulses=colors.length>1?6:3;
     for(let pulse=0;pulse<pulses;pulse++){
-      await Promise.all(ids.map((id,index)=>sendOne(id,colors[(pulse+index)%colors.length],95,true)));
+      const flashColor = colors.length>1 ? colors[pulse%colors.length] : colors[0];
+      await sendAll(flashColor,95,true);
       await wait(500);
-      await Promise.all(ids.map(id=>sendOne(id,null,null,false)));
+      await sendAll(null,null,false);
       await wait(500);
     }
-    await Promise.all(ids.map((id,index)=>sendOne(id,colors[(pulses-1+index)%colors.length],65,true)));
+    await sendAll(colors[(pulses-1)%colors.length],65,true);
     toast("Snelle wedstrijdflitsen uitgevoerd op "+ids.length+" lamp(en).");
   }catch(error){
     toast(error.message||"Hue-aansturing mislukt.");
