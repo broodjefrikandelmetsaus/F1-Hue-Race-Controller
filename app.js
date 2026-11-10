@@ -306,11 +306,11 @@ const COUNTRY_NAMES = {
 };
 const COUNTRY_PALETTES = {
   AUS:["#00008B","#FFFFFF","#E4002B"], AUT:["#ED2939","#FFFFFF","#ED2939"],
-  BEL:["#111111","#FAE042","#ED2939"], BRA:["#009739","#FFDF00","#002776"],
+  BEL:["#ED2939","#111111","#FAE042"], BRA:["#009739","#FFDF00","#002776"],
   CAN:["#FF0000","#FFFFFF","#FF0000"], CHN:["#DE2910","#FFDE00","#DE2910"],
   DEN:["#C60C30","#FFFFFF","#C60C30"], ESP:["#AA151B","#F1BF00","#AA151B"],
   FIN:["#FFFFFF","#003580","#FFFFFF"], FRA:["#0055A4","#FFFFFF","#EF4135"],
-  GBR:["#012169","#FFFFFF","#C8102E"], GER:["#111111","#DD0000","#FFCE00"],
+  GBR:["#012169","#FFFFFF","#C8102E"], GER:["#DD0000","#111111","#FFCE00"],
   ITA:["#009246","#FFFFFF","#CE2B37"], JPN:["#FFFFFF","#BC002D","#FFFFFF"],
   MEX:["#006847","#FFFFFF","#CE1126"], MON:["#CE1126","#FFFFFF","#CE1126"],
   NED:["#AE1C28","#FFFFFF","#21468B"], NZL:["#00247D","#FFFFFF","#CC142B"],
@@ -362,7 +362,8 @@ function teamPaletteInfo(teamName){
     : {name:teamName||"Onbekend team",palette:["#E10600","#FFFFFF","#111111"],known:false};
 }
 function countryPaletteInfo(countryCode){
-  const code=String(countryCode||"").toUpperCase();
+  const rawCode=String(countryCode||"").toUpperCase();
+  const code=({DEU:"GER",DE:"GER",BE:"BEL"})[rawCode]||rawCode;
   return {
     name:COUNTRY_NAMES[code]||code||"Nationaliteit onbekend",
     code,
@@ -413,9 +414,17 @@ function setWinnerEffectMode(mode){
   renderWinnerControls();
   renderWinnerTestOptions();
 }
+function isBlackWinnerColor(color){
+  const value=String(color||"").trim().toLowerCase();
+  if(!/^#[0-9a-f]{6}$/.test(value))return false;
+  const r=parseInt(value.slice(1,3),16),g=parseInt(value.slice(3,5),16),b=parseInt(value.slice(5,7),16);
+  return (0.2126*r+0.7152*g+0.0722*b)<45;
+}
 function previewWinnerColors(name,palette,caption){
   $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
-    el.style.background=palette[index%palette.length];
+    const color=palette[index%palette.length];
+    el.style.background=isBlackWinnerColor(color)?"#000000":color;
+    el.style.opacity=isBlackWinnerColor(color)?"0.28":"1";
     el.style.animation="none";
     void el.offsetWidth;
     el.style.animation="lightFlash .42s ease-in-out 3";
@@ -766,8 +775,8 @@ async function sendWinnerCelebration(colors,returnToStandby=true){
       if(effectToken!==state.hueEffectToken)return false;
       const shift=frame%ids.length;
       const frameColors=ids.map((id,index)=>({id,color:colors[((index-shift)%colors.length+colors.length)%colors.length]}));
-      const offIds=frameColors.filter(item=>/^#(?:000000|111111)$/i.test(item.color)).map(item=>item.id);
-      const litColors=frameColors.filter(item=>!/^#(?:000000|111111)$/i.test(item.color))
+      const offIds=frameColors.filter(item=>isBlackWinnerColor(item.color)).map(item=>item.id);
+      const litColors=frameColors.filter(item=>!isBlackWinnerColor(item.color))
         .map(item=>({id:item.id,color:hexToHueXY(item.color)}));
       await Promise.all([
         offIds.length?postHueCommand(pin,{lightIds:offIds,on:false}):Promise.resolve(),
@@ -778,8 +787,8 @@ async function sendWinnerCelebration(colors,returnToStandby=true){
     }
     if(effectToken!==state.hueEffectToken)return false;
     const finalColors=ids.map((id,index)=>({id,color:colors[(index+frames)%colors.length]}));
-    const finalOffIds=finalColors.filter(item=>/^#(?:000000|111111)$/i.test(item.color)).map(item=>item.id);
-    const finalLitColors=finalColors.filter(item=>!/^#(?:000000|111111)$/i.test(item.color))
+    const finalOffIds=finalColors.filter(item=>isBlackWinnerColor(item.color)).map(item=>item.id);
+    const finalLitColors=finalColors.filter(item=>!isBlackWinnerColor(item.color))
       .map(item=>({id:item.id,color:hexToHueXY(item.color)}));
     await Promise.all([
       finalOffIds.length?postHueCommand(pin,{lightIds:finalOffIds,on:false}):Promise.resolve(),
