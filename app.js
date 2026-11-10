@@ -26,8 +26,8 @@ const state = {
     CHEQUERED:{enabled:true,colors:["#eaf0f8","#192338"]},
     BLUE:{enabled:true,colors:["#4d87ff"]}
   },
-  winnerSelectionType: localStorage.getItem("fh_winner_selection_type") || "team",
-  winnerSelection: localStorage.getItem("fh_winner_selection") || "",
+  winnerEffectMode: localStorage.getItem("fh_winner_effect_mode") || "team",
+  winnerTestSelection: "",
   playing: false, anchor: 0, pausedAt: 0, current: 0, fired: new Set(), timer: null, toastTimer: null
 };
 const EVENT_META = {
@@ -327,53 +327,114 @@ const COUNTRY_PALETTES = {
   URU:["#FFFFFF","#0038A8","#FFFFFF"], PAR:["#D52B1E","#FFFFFF","#0038A8"],
   CHI:["#FFFFFF","#D52B1E","#0039A6"], LUX:["#ED2939","#FFFFFF","#00A1DE"]
 };
+// Vaste teamidentiteitskleuren: geen kleurdetectie uit de actuele autolivery.
 const TEAM_PALETTES = {
-  "McLaren":["#FF8000","#000000","#0090D4"],
-  "Ferrari":["#E80020","#FFFFFF","#000000"],
-  "Red Bull":["#3671C6","#FFCC00","#E8002D"],
-  "Mercedes":["#000000","#27F4D2","#C8CCCE"],
-  "Aston Martin":["#00665E","#CEDC00","#000000"],
-  "Alpine":["#FF87BC","#0090FF","#000000"],
-  "Williams":["#64C4FF","#041E42","#FFFFFF"],
-  "Racing Bulls":["#FFFFFF","#6692FF","#C8102E"],
-  "Haas":["#FFFFFF","#E6002B","#000000"],
-  "Audi":["#C8CED4","#F50537","#000000"],
-  "Cadillac":["#FFFFFF","#000000","#A8A9AD"]
+  "McLaren":["#FF8000","#292929","#FFFFFF"],
+  "Ferrari":["#E80020","#FFF200","#111111"],
+  "Red Bull Racing":["#003DA5","#FFD700","#E10600"],
+  "Mercedes":["#000000","#00A19B","#C8CCCE"],
+  "Aston Martin":["#00594F","#CEDC00","#111111"],
+  "Alpine":["#0090FF","#FF87BC","#FFFFFF"],
+  "Williams":["#00A3E0","#041E42","#FFFFFF"],
+  "Racing Bulls":["#1769FF","#FFFFFF","#0B1B3A"],
+  "Haas":["#E6002B","#FFFFFF","#111111"],
+  "Audi":["#B6B9BD","#F50537","#111111"],
+  "Cadillac":["#111111","#FFFFFF","#A8A9AD"]
 };
-function renderWinnerOptions(){
-  const typeSelect=$("winnerSelectionType"), optionSelect=$("winnerSelection");
-  if(!typeSelect||!optionSelect)return;
-  const type=typeSelect.value||state.winnerSelectionType||"team";
-  const drivers=[...state.drivers.values()];
-  const choices=new Map();
-  drivers.forEach(driver=>{
-    const key=type==="team"?(driver.team_name||""):(driver.country_code||"").toUpperCase();
-    if(!key)return;
-    if(!choices.has(key))choices.set(key,type==="team"?key:(COUNTRY_NAMES[key]||key));
-  });
-  const sorted=[...choices.entries()].sort((a,b)=>a[1].localeCompare(b[1],"nl"));
-  const previous=state.winnerSelection;
-  const winner=state.results.find(result=>Number(result.position)===1)||state.results[0];
-  const winnerDriver=winner?state.drivers.get(Number(winner.driver_number)):null;
-  const winnerKey=type==="team"?(winnerDriver?.team_name||""):(winnerDriver?.country_code||"").toUpperCase();
-  optionSelect.innerHTML=sorted.length
-    ? sorted.map(([value,label])=>'<option value="'+escapeHtml(value)+'">'+escapeHtml(label)+'</option>').join("")
-    : '<option value="">Geen deelnemers beschikbaar</option>';
-  if(winnerKey && sorted.some(([value])=>value===winnerKey)){optionSelect.value=winnerKey;state.winnerSelection=winnerKey;}
-  else if(sorted.some(([value])=>value===previous))optionSelect.value=previous;
-  else if(sorted.length){optionSelect.value=sorted[0][0];state.winnerSelection=sorted[0][0];}
-  else state.winnerSelection="";
-  localStorage.setItem("fh_winner_selection",state.winnerSelection);
+const TEAM_ALIASES = [
+  ["McLaren",["mclaren"]],
+  ["Ferrari",["ferrari"]],
+  ["Red Bull Racing",["red bull"]],
+  ["Mercedes",["mercedes"]],
+  ["Aston Martin",["aston martin"]],
+  ["Alpine",["alpine"]],
+  ["Williams",["williams"]],
+  ["Racing Bulls",["racing bulls","visa cash app rb","visa cash app racing bulls"]],
+  ["Haas",["haas"]],
+  ["Audi",["audi","kick sauber","sauber"]],
+  ["Cadillac",["cadillac"]]
+];
+function teamPaletteInfo(teamName){
+  const normalized=String(teamName||"").toLowerCase();
+  const match=TEAM_ALIASES.find(([,aliases])=>aliases.some(alias=>normalized.includes(alias)));
+  return match
+    ? {name:match[0],palette:TEAM_PALETTES[match[0]],known:true}
+    : {name:teamName||"Onbekend team",palette:["#E10600","#FFFFFF","#111111"],known:false};
 }
-function winnerPalette(){
-  const type=$("winnerSelectionType")?.value||state.winnerSelectionType||"team";
-  const selected=$("winnerSelection")?.value||state.winnerSelection;
-  if(type==="country")return COUNTRY_PALETTES[selected]||["#E10600","#FFFFFF","#00008B"];
-  const driver=[...state.drivers.values()].find(d=>d.team_name===selected&&d.team_colour);
-  const teamKey=Object.keys(TEAM_PALETTES).find(name=>String(selected).toLowerCase().includes(name.toLowerCase()));
-  const fallback=teamKey?TEAM_PALETTES[teamKey]:["#E10600","#FFFFFF","#00008B"];
-  const apiColor=driver?.team_colour?"#"+String(driver.team_colour).replace("#",""):"";
-  return apiColor?[apiColor,...fallback.slice(1)]:fallback;
+function countryPaletteInfo(countryCode){
+  const code=String(countryCode||"").toUpperCase();
+  return {
+    name:COUNTRY_NAMES[code]||code||"Nationaliteit onbekend",
+    code,
+    palette:COUNTRY_PALETTES[code]||["#1D3557","#FFFFFF","#D62828"],
+    known:Boolean(COUNTRY_PALETTES[code])
+  };
+}
+function winnerPaletteInfo(driver,mode=state.winnerEffectMode){
+  return mode==="country"
+    ? {...countryPaletteInfo(driver?.country_code),mode:"country"}
+    : {...teamPaletteInfo(driver?.team_name),mode:"team"};
+}
+function renderWinnerControls(){
+  const teamButton=$("winnerTeamModeButton"),countryButton=$("winnerCountryModeButton");
+  if(teamButton){
+    const active=state.winnerEffectMode==="team";
+    teamButton.classList.toggle("active",active);
+    teamButton.setAttribute("aria-pressed",String(active));
+  }
+  if(countryButton){
+    const active=state.winnerEffectMode==="country";
+    countryButton.classList.toggle("active",active);
+    countryButton.setAttribute("aria-pressed",String(active));
+  }
+  const note=$("winnerModeNote");
+  if(note)note.textContent=state.winnerEffectMode==="team"
+    ?"Bij de finish gebruikt de app automatisch de vaste kleuren van het team van P1."
+    :"Bij de finish gebruikt de app automatisch de vlagkleuren van het land van P1.";
+}
+function renderWinnerTestOptions(){
+  const select=$("winnerTestSelection");
+  if(!select)return;
+  const previous=state.winnerTestSelection;
+  const entries=state.winnerEffectMode==="team"
+    ? Object.keys(TEAM_PALETTES).map(name=>[name,name])
+    : Object.keys(COUNTRY_PALETTES).map(code=>[code,COUNTRY_NAMES[code]||code]);
+  const sorted=entries.sort((a,b)=>a[1].localeCompare(b[1],"nl"));
+  select.innerHTML='<option value="">Kies een kleurenset om te testen</option>'+
+    sorted.map(([value,label])=>'<option value="'+escapeHtml(value)+'">'+escapeHtml(label)+'</option>').join("");
+  if(sorted.some(([value])=>value===previous))select.value=previous;
+  else {select.value="";state.winnerTestSelection="";}
+}
+function setWinnerEffectMode(mode){
+  if(!["team","country"].includes(mode))return;
+  state.winnerEffectMode=mode;
+  localStorage.setItem("fh_winner_effect_mode",mode);
+  state.winnerTestSelection="";
+  renderWinnerControls();
+  renderWinnerTestOptions();
+}
+function previewWinnerColors(name,palette,caption){
+  $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
+    el.style.background=palette[index%palette.length];
+    el.style.animation="none";
+    void el.offsetWidth;
+    el.style.animation="lightFlash .42s ease-in-out 3";
+    el.style.animationDelay=(index*35)+"ms";
+  });
+  $("previewName").textContent=name;
+  $("previewCaption").textContent=caption;
+}
+function testWinnerEffect(){
+  const selected=$("winnerTestSelection")?.value||"";
+  if(!selected){toast("Kies eerst een team of land om te testen.");return;}
+  const info=state.winnerEffectMode==="team"
+    ? {name:selected,palette:TEAM_PALETTES[selected],known:true,mode:"team"}
+    : {...countryPaletteInfo(selected),mode:"country"};
+  if(!info.palette){toast("Voor deze selectie zijn geen kleuren gevonden.");return;}
+  const typeLabel=info.mode==="team"?"Teamtest":"Landtest";
+  previewWinnerColors("TEST · "+info.name,info.palette,
+    typeLabel+" · vaste team-/vlagkleuren. Dit verandert de automatische winnaar niet.");
+  state.hueEffectPromise=sendWinnerCelebration(info.palette);
 }
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -575,7 +636,7 @@ async function loadRaceEvents() {
     if(fastest)addEvent(events,{...fastest,date:fastest.date_start},"FASTEST_LAP",start,{detail:driverName(fastest.driver_number)+" · "+Number(fastest.lap_duration).toFixed(3)+"s · ronde "+fastest.lap_number,source:"Laps"});
     state.events=events.sort((a,b)=>a.seconds-b.seconds);
     state.results=(loaded.session_result||[]).sort((a,b)=>a.position-b.position);
-    renderWinnerOptions();
+    renderWinnerTestOptions();
     const last=state.events.at(-1)?.seconds||0;
     const sessionEnd=new Date(state.session.date_end||start).getTime();
     const sessionLength=(sessionEnd-new Date(start).getTime())/1000;
@@ -712,21 +773,27 @@ async function sendWinnerCelebration(colors){
   }catch(error){toast(error.message||"Winnaarsfeest via Hue mislukt.");}
 }
 function showWinnerPreview(event){
-  const winner=state.results.find(result=>Number(result.position)===1)||state.results[0];
-  const name=winner?driverName(winner.driver_number):"Winnaar";
-  const type=$("winnerSelectionType")?.value||"team";
-  const selected=$("winnerSelection")?.value||"";
-  const palette=winnerPalette();
-  $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
-    el.style.background=palette[index%palette.length];
-    el.style.animation="none";
-    void el.offsetWidth;
-    el.style.animation="lightFlash .42s ease-in-out 3";
-    el.style.animationDelay=(index*35)+"ms";
-  });
-  $("previewName").textContent="WINNAAR · "+name;
-  $("previewCaption").textContent=(type==="team"?"Team: ":"Land: ")+(selected||"niet geselecteerd")+" · Kleurwave door alle geselecteerde kamers, daarna rood/blauwe stand-by.";
-  if(state.playing)state.hueEffectPromise=sendWinnerCelebration(palette);
+  const winner=state.results.find(result=>Number(result.position)===1);
+  if(!winner){
+    previewWinnerColors("WINNAAR NIET BEKEND",["#E10600","#FFFFFF","#111111"],
+      "De databron heeft nog geen officiële P1-uitslag teruggegeven. Er wordt geen winnaarskleur afgespeeld.");
+    toast("Geen P1-classificatie gevonden; winnaarseffect overgeslagen.");
+    return;
+  }
+  const driver=state.drivers.get(Number(winner.driver_number));
+  if(!driver){
+    previewWinnerColors("WINNAAR NIET HERKEND",["#E10600","#FFFFFF","#111111"],
+      "De coureur van P1 ontbreekt in de deelnemersgegevens. Er wordt geen willekeurige kleur gekozen.");
+    toast("P1 staat in de uitslag, maar de coureurgegevens ontbreken.");
+    return;
+  }
+  const info=winnerPaletteInfo(driver,state.winnerEffectMode);
+  const name=driverName(winner.driver_number);
+  const label=info.mode==="team"?"Teamkleuren":"Landkleuren";
+  const detail=info.known?"":" · kleurset niet exact herkend";
+  previewWinnerColors("WINNAAR · "+name,info.palette,
+    label+": "+info.name+detail+" · automatisch bepaald op basis van P1. Daarna terug naar rood/blauwe stand-by.");
+  if(state.playing)state.hueEffectPromise=sendWinnerCelebration(info.palette);
 }
 function renderEffectSettings(){
   const items=[
@@ -981,18 +1048,12 @@ document.querySelectorAll("[data-offset]").forEach(b=>b.addEventListener("click"
 $("applyStandbyButton")?.addEventListener("click",()=>showStandbyPreview(true));
 $("standbyToggle").checked=state.standby;
 $("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));state.standby?showStandbyPreview(true):restoreHueOriginalStates();});
-$("winnerSelectionType").value=state.winnerSelectionType;
-$("winnerSelectionType").addEventListener("change",e=>{
-  state.winnerSelectionType=e.target.value;
-  state.winnerSelection="";
-  localStorage.setItem("fh_winner_selection_type",state.winnerSelectionType);
-  renderWinnerOptions();
-});
-$("winnerSelection").addEventListener("change",e=>{
-  state.winnerSelection=e.target.value;
-  localStorage.setItem("fh_winner_selection",state.winnerSelection);
-});
-renderWinnerOptions();
+$("winnerTeamModeButton")?.addEventListener("click",()=>setWinnerEffectMode("team"));
+$("winnerCountryModeButton")?.addEventListener("click",()=>setWinnerEffectMode("country"));
+$("winnerTestSelection")?.addEventListener("change",e=>{state.winnerTestSelection=e.target.value;});
+$("testWinnerEffectButton")?.addEventListener("click",testWinnerEffect);
+renderWinnerControls();
+renderWinnerTestOptions();
 renderEffectSettings();
 if(state.standby)showStandbyPreview();
 loadHueConnectionStatus();
