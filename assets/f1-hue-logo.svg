@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+ <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff303d"/><stop offset=".5" stop-color="#6b35ff"/><stop offset="1" stop-color="#00cfff"/></linearGradient>
+ <linearGradient id="rainbow" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ff3030"/><stop offset=".25" stop-color="#ffb52e"/><stop offset=".5" stop-color="#b6ff32"/><stop offset=".75" stop-color="#00d9ff"/><stop offset="1" stop-color="#a34bff"/></linearGradient>
+ <linearGradient id="car" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ff202e"/><stop offset=".5" stop-color="#121b2d"/><stop offset="1" stop-color="#168dff"/></linearGradient>
+ <radialGradient id="bg"><stop stop-color="#182b4b"/><stop offset="1" stop-color="#03050a"/></radialGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="8" y="8" width="496" height="496" rx="58" fill="url(#bg)" stroke="url(#rim)" stroke-width="8"/>
+<path d="M28 28h260l-38 35H28zm300 0h55l-36 35h-55z" fill="#fff" opacity=".09"/>
+<g opacity=".25" fill="#fff"><path d="M28 80h72v38H28zm76 0h72v38h-72zm76 0h72v38h-72z"/></g>
+<path d="M50 177 95 125h173l-36 36H124l-14 16zm104 0 36-36h93l-36 36z" fill="#ff101c"/>
+<g filter="url(#glow)" fill="none" stroke="url(#rainbow)" stroke-width="10" stroke-linejoin="round"><path d="M322 115 384 62l63 53h-23v77H345v-77z"/></g>
+<g filter="url(#glow)"><path d="M374 117c-20 0-32 15-32 32 0 11 6 19 12 27l7 18h26l7-18c7-8 12-16 12-27 0-17-12-32-32-32" fill="url(#rainbow)"/><path d="M359 198h30v12h-30zm3 16h24v9h-24" fill="#e9f8ff"/></g>
+<g transform="translate(0 12)">
+ <path d="M62 328 95 301l62-15 39-37h117l44 38 61 12 30 29-10 29H76z" fill="url(#car)" stroke="#a8d9ff" stroke-width="4"/>
+ <path d="m192 249 24-25h85l28 27-28 18h-83z" fill="#08101d" stroke="#7ecaff" stroke-width="4"/>
+ <path d="M78 327h350l-22 25H98z" fill="#080c14" stroke="#d4eaff" stroke-width="3"/>
+ <path d="M206 288h102l20 17H184z" fill="#ff2636"/>
+ <path d="M44 337h50v25H44zm374 0h50v25h-50z" fill="#07090e" stroke="#7d9bb8" stroke-width="4"/>
+ <path d="M30 358h452" stroke="url(#rainbow)" stroke-width="6" filter="url(#glow)"/>
+</g>
+<text x="256" y="427" text-anchor="middle" font-family="Arial,sans-serif" font-size="63" font-weight="900" font-style="italic" fill="url(#rainbow)">F1 HUE</text>
+<text x="256" y="464" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="800" font-style="italic" letter-spacing="2" fill="#fff">RACE CONTROLLER</text>
+<path d="M112 480h288" stroke="#ff2536" stroke-width="5"/><path d="m215 478 12-12h18l-12 12zm30 0 12-12h18l-12 12zm30 0 12-12h18l-12 12z" fill="#ff2536"/>
+</svg>
