@@ -8,6 +8,7 @@ on:
       - "index.html"
       - "styles.css"
       - "manifest.json"
+      - "assets/**"
       - "package.json"
       - "capacitor.config.json"
       - "scripts/**"
@@ -55,6 +56,9 @@ jobs:
 
       - name: Generate Android project
         run: npx cap add android
+
+      - name: Apply F1 Hue launcher icon
+        run: node scripts/apply-android-icon.mjs
 
       - name: Sync Capacitor
         run: npx cap sync android
