@@ -965,13 +965,13 @@ async function sendSafetyCarBeacon(returnToStandby=true){
     const flash=async id=>{
       if(token!==state.hueEffectToken)return false;
       await postHueCommand(pin,{lightIds:[id],color:hexToHueXY("#FF9D00"),on:true,brightness:100});
-      await wait(110);
+      await wait(35);
       if(token!==state.hueEffectToken)return false;
       await postHueCommand(pin,{lightIds:[id],on:false});
-      await wait(90);
+      await wait(20);
       return token===state.hueEffectToken;
     };
-    for(let cycle=0;cycle<3;cycle++){
+    for(let cycle=0;cycle<2;cycle++){
       for(const id of [left,left,right,right])if(!await flash(id))return false;
     }
     if(returnToStandby&&state.standby){
