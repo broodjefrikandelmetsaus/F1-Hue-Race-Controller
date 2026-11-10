@@ -655,7 +655,7 @@ async function getHuePin() {
 function changeHuePin() {
   const nextPin = prompt("Voer je nieuwe 6-cijferige Hue-toegangscode in:");
   if (nextPin === null) return;
-  if (!/^\\d{6}$/.test(nextPin)) {
+  if (!/^\d{6}$/.test(nextPin)) {
     toast("De toegangscode moet uit precies 6 cijfers bestaan.");
     return;
   }
