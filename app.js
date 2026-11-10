@@ -8,6 +8,8 @@ const state = {
   offset: Number(localStorage.getItem("fh_offset") || 0),
   standby: localStorage.getItem("fh_standby") !== "false",
   hueGroups: [],
+  selectedHueLights: new Set(JSON.parse(localStorage.getItem("fh_hue_selected_lights") || "[]")),
+  resultsRevealed: false,
   selectedHueGroupId: localStorage.getItem("fh_hue_group_id") || "",
   selectedHueGroupType: localStorage.getItem("fh_hue_group_type") || "",
   selectedHueGroupName: localStorage.getItem("fh_hue_group_name") || "",
@@ -191,14 +193,28 @@ async function loadHueDevices() {
     if (!lights.length) {
       list.innerHTML = '<div class="device-empty">De Bridge reageert, maar er zijn geen lampen gevonden.</div>';
     } else {
-      list.innerHTML = '<div class="device-summary">' + lights.length + ' Hue-lamp(en) gevonden</div>' +
+      const validIds = new Set(lights.map(light => light.id).filter(Boolean));
+      state.selectedHueLights = new Set([...state.selectedHueLights].filter(id => validIds.has(id)));
+      localStorage.setItem("fh_hue_selected_lights", JSON.stringify([...state.selectedHueLights]));
+      list.innerHTML = '<div class="device-summary">' + lights.length + ' Hue-lamp(en) gevonden · ' +
+        state.selectedHueLights.size + ' geselecteerd</div>' +
         lights.map(light => {
           const caps = light.hasColor ? "Kleur" : (light.hasColorTemperature ? "Wittemperatuur" : "Wit / dimbaar");
           const status = light.on === null ? "Status onbekend" : (light.on ? "Aan" : "Uit");
           const brightness = light.brightness === null ? "" : " · " + Math.round(light.brightness) + "%";
-          return '<div class="hue-device-row"><span class="device-bulb">●</span><span class="device-info"><b>' +
-            escapeHtml(light.name) + '</b><small>' + caps + ' · ' + status + brightness + '</small></span></div>';
+          const checked = state.selectedHueLights.has(light.id) ? " checked" : "";
+          return '<label class="hue-device-row hue-device-selectable"><input class="hue-light-checkbox" type="checkbox" data-hue-light-id="' +
+            escapeHtml(light.id) + '"' + checked + '><span class="device-bulb">●</span><span class="device-info"><b>' +
+            escapeHtml(light.name) + '</b><small>' + caps + ' · ' + status + brightness + '</small></span></label>';
         }).join("");
+      list.querySelectorAll("[data-hue-light-id]").forEach(input => input.addEventListener("change", () => {
+        const id = input.dataset.hueLightId;
+        if (input.checked) state.selectedHueLights.add(id);
+        else state.selectedHueLights.delete(id);
+        localStorage.setItem("fh_hue_selected_lights", JSON.stringify([...state.selectedHueLights]));
+        const summary = list.querySelector(".device-summary");
+        if (summary) summary.textContent = lights.length + " Hue-lamp(en) gevonden · " + state.selectedHueLights.size + " geselecteerd";
+      }));
     }
 
     // Load rooms, zones and their grouped-light control resources after registration.
@@ -459,7 +475,7 @@ async function loadRaceEvents() {
   if(!state.session)return;
   if(sessionStatus(state.session)!=="AFGELOPEN"){toast("Deze sessie is nog niet afgelopen. De race-events zijn na afloop beschikbaar.");return;}
   setStatus("Racegegevens ophalen…",true);
-  stopPlayer(true); state.events=[];state.drivers=new Map();state.results=[];
+  stopPlayer(true); state.events=[];state.drivers=new Map();state.results=[];state.resultsRevealed=false;
   const key=state.session.session_key;
   const endpoints=["drivers","race_control","pit","overtakes","stints","session_result","laps"];
   const loaded={};
@@ -513,12 +529,20 @@ function renderResults(){
   const box=$("resultsPanel");
   box.querySelector(".podium-empty")?.remove();
   box.querySelector(".podium-list")?.remove();
+  box.querySelector(".results-reveal-row")?.remove();
   if(!state.results.length){
     box.insertAdjacentHTML("beforeend",'<div class="podium-empty">Uitslag nog niet gepubliceerd in de databron.</div>');
     return;
   }
   const top=state.results.slice(0,3);
-  box.insertAdjacentHTML("beforeend",'<div class="podium-list">'+top.map((r,i)=>'<div class="podium-row"><span class="podium-place">'+(r.position||i+1)+'</span><div><strong>'+escapeHtml(driverName(r.driver_number))+'</strong><small>'+escapeHtml(driverTeam(r.driver_number))+'</small></div></div>').join("")+'</div>');
+  const podium=top.map((r,i)=>'<div class="podium-row"><span class="podium-place">'+(r.position||i+1)+'</span><div><strong>'+escapeHtml(driverName(r.driver_number))+'</strong><small>'+escapeHtml(driverTeam(r.driver_number))+'</small></div></div>').join("");
+  box.insertAdjacentHTML("beforeend",
+    '<div class="results-reveal-row"><span class="results-spoiler-note">'+(state.resultsRevealed?"Uitslag onthuld":"Spoiler verborgen")+'</span><button type="button" class="button button-secondary results-reveal-button" id="revealResultsButton">'+(state.resultsRevealed?"Verberg uitslag":"Onthul uitslag")+'</button></div>'+
+    '<div class="podium-list'+(state.resultsRevealed?"":" results-blurred")+'" aria-label="Race-uitslag">'+podium+'</div>');
+  $("revealResultsButton").addEventListener("click",()=>{
+    state.resultsRevealed=!state.resultsRevealed;
+    renderResults();
+  });
 }
 function configurePlayer(){
   $("timelineSlider").disabled=false;$("timelineSlider").max=String(Math.ceil(state.duration));$("timelineSlider").value="0";
