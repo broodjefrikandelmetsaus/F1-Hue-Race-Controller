@@ -652,6 +652,16 @@ async function getHuePin() {
   }
   return pin;
 }
+function changeHuePin() {
+  const nextPin = prompt("Voer je nieuwe 6-cijferige Hue-toegangscode in:");
+  if (nextPin === null) return;
+  if (!/^\\d{6}$/.test(nextPin)) {
+    toast("De toegangscode moet uit precies 6 cijfers bestaan.");
+    return;
+  }
+  localStorage.setItem("fh_hue_pin", nextPin);
+  toast("Toegangscode opgeslagen op dit apparaat.");
+}
 async function postHueCommand(pin, payload) {
   const response = await fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=light", {
     method: "POST", headers: {"Content-Type":"application/json","Accept":"application/json"},
@@ -659,7 +669,6 @@ async function postHueCommand(pin, payload) {
   });
   const data = await response.json();
   if (!response.ok) {
-    if (response.status === 401 && data.code === "invalid_pin") localStorage.removeItem("fh_hue_pin");
     throw new Error(data.error || "Hue-commando mislukt");
   }
   return data;
@@ -781,6 +790,7 @@ function updateOffset(value){
   localStorage.setItem("fh_offset",String(state.offset));
 }
 $("hueLoadDevicesButton")?.addEventListener("click", loadHueDevices);
+$("hueChangePinButton")?.addEventListener("click", changeHuePin);
 $("yearSelect").addEventListener("change",e=>loadMeetings(e.target.value));
 $("refreshCalendarButton").addEventListener("click",()=>refreshCalendar(false));
 $("meetingSelect").addEventListener("change",e=>loadSessions(e.target.value));
