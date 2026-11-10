@@ -1176,6 +1176,24 @@ renderWinnerTestOptions();
 renderEffectSettings();
 if(!restoreLastPreview()&&state.standby)showStandbyPreview();
 loadHueConnectionStatus();
+$("hueConnectButton")?.addEventListener("click", () => {
+  const button = $("hueConnectButton");
+  if (button?.textContent?.toLowerCase().includes("opnieuw proberen")) {
+    loadHueConnectionStatus();
+    return;
+  }
+  const endpoint = "https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-oauth-start";
+  const authWindow = window.open(endpoint, "_blank");
+  if (!authWindow) {
+    window.location.assign(endpoint);
+    return;
+  }
+  try { authWindow.opener = null; } catch (_) {}
+  toast("De Philips Hue-inlog is geopend. Rond de toestemming af en ga daarna terug naar deze app.");
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) loadHueConnectionStatus();
+});
 $("themeButton").addEventListener("click",()=>document.body.classList.toggle("light"));
 updateOffset(state.offset);
 loadYears();
