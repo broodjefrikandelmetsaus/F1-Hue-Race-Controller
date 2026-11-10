@@ -299,20 +299,46 @@ const COUNTRY_NAMES = {
   GER:"Duitsland", ITA:"Italië", JPN:"Japan", MEX:"Mexico", MON:"Monaco", NED:"Nederland",
   NZL:"Nieuw-Zeeland", POL:"Polen", POR:"Portugal", SUI:"Zwitserland", THA:"Thailand",
   UAE:"Verenigde Arabische Emiraten", USA:"Verenigde Staten", ARG:"Argentinië", KOR:"Zuid-Korea",
-  RUS:"Rusland", SWE:"Zweden", NOR:"Noorwegen", IRL:"Ierland"
+  RUS:"Rusland", SWE:"Zweden", NOR:"Noorwegen", IRL:"Ierland", CZE:"Tsjechië",
+  HUN:"Hongarije", RSA:"Zuid-Afrika", IND:"India", MAL:"Maleisië", SIN:"Singapore",
+  TUR:"Turkije", COL:"Colombia", VEN:"Venezuela", ECU:"Ecuador", URU:"Uruguay",
+  PAR:"Paraguay", CHI:"Chili", LUX:"Luxemburg"
 };
 const COUNTRY_PALETTES = {
-  AUS:["#00843D","#FFCD00"], AUT:["#ED2939","#FFFFFF"], BEL:["#111111","#FAE042","#ED2939"],
-  BRA:["#009739","#FFDF00","#002776"], CAN:["#FF0000","#FFFFFF"], CHN:["#DE2910","#FFDE00"],
-  DEN:["#C60C30","#FFFFFF"], ESP:["#AA151B","#F1BF00"], FIN:["#FFFFFF","#003580"],
-  FRA:["#0055A4","#FFFFFF","#EF4135"], GBR:["#012169","#FFFFFF","#C8102E"],
-  GER:["#111111","#DD0000","#FFCE00"], ITA:["#009246","#FFFFFF","#CE2B37"],
-  JPN:["#FFFFFF","#BC002D"], MEX:["#006847","#FFFFFF","#CE1126"], MON:["#CE1126","#FFFFFF"],
+  AUS:["#00008B","#FFFFFF","#E4002B"], AUT:["#ED2939","#FFFFFF","#ED2939"],
+  BEL:["#111111","#FAE042","#ED2939"], BRA:["#009739","#FFDF00","#002776"],
+  CAN:["#FF0000","#FFFFFF","#FF0000"], CHN:["#DE2910","#FFDE00","#DE2910"],
+  DEN:["#C60C30","#FFFFFF","#C60C30"], ESP:["#AA151B","#F1BF00","#AA151B"],
+  FIN:["#FFFFFF","#003580","#FFFFFF"], FRA:["#0055A4","#FFFFFF","#EF4135"],
+  GBR:["#012169","#FFFFFF","#C8102E"], GER:["#111111","#DD0000","#FFCE00"],
+  ITA:["#009246","#FFFFFF","#CE2B37"], JPN:["#FFFFFF","#BC002D","#FFFFFF"],
+  MEX:["#006847","#FFFFFF","#CE1126"], MON:["#CE1126","#FFFFFF","#CE1126"],
   NED:["#AE1C28","#FFFFFF","#21468B"], NZL:["#00247D","#FFFFFF","#CC142B"],
-  POL:["#FFFFFF","#DC143C"], POR:["#006600","#FF0000"], SUI:["#FF0000","#FFFFFF"],
-  THA:["#A51931","#FFFFFF","#2D2A4A"], UAE:["#00732F","#FFFFFF","#FF0000","#000000"],
-  USA:["#3C3B6E","#FFFFFF","#B22234"], ARG:["#74ACDF","#FFFFFF","#74ACDF"],
-  KOR:["#FFFFFF","#CD2E3A","#0047A0"], SWE:["#006AA7","#FECC00"], NOR:["#BA0C2F","#FFFFFF","#00205B"]
+  POL:["#FFFFFF","#DC143C","#FFFFFF"], POR:["#006600","#FF0000","#FFCC00"],
+  SUI:["#FF0000","#FFFFFF","#FF0000"], THA:["#A51931","#FFFFFF","#2D2A4A"],
+  UAE:["#00732F","#FFFFFF","#FF0000","#000000"], USA:["#3C3B6E","#FFFFFF","#B22234"],
+  ARG:["#74ACDF","#FFFFFF","#74ACDF"], KOR:["#FFFFFF","#CD2E3A","#0047A0"],
+  SWE:["#006AA7","#FECC00","#006AA7"], NOR:["#BA0C2F","#FFFFFF","#00205B"],
+  CZE:["#FFFFFF","#D7141A","#11457E"], HUN:["#CE2939","#FFFFFF","#477050"],
+  RSA:["#007749","#FFB81C","#DE3831","#002395"], IND:["#FF9933","#FFFFFF","#138808"],
+  MAL:["#CC0001","#FFFFFF","#010066"], SIN:["#EF3340","#FFFFFF"],
+  TUR:["#E30A17","#FFFFFF","#E30A17"], COL:["#FCD116","#003893","#CE1126"],
+  VEN:["#FCE300","#003DA5","#CF142B"], ECU:["#FFDD00","#034EA2","#ED1C24"],
+  URU:["#FFFFFF","#0038A8","#FFFFFF"], PAR:["#D52B1E","#FFFFFF","#0038A8"],
+  CHI:["#FFFFFF","#D52B1E","#0039A6"], LUX:["#ED2939","#FFFFFF","#00A1DE"]
+};
+const TEAM_PALETTES = {
+  "McLaren":["#FF8000","#000000","#0090D4"],
+  "Ferrari":["#E80020","#FFFFFF","#000000"],
+  "Red Bull":["#3671C6","#FFCC00","#E8002D"],
+  "Mercedes":["#000000","#27F4D2","#C8CCCE"],
+  "Aston Martin":["#00665E","#CEDC00","#000000"],
+  "Alpine":["#FF87BC","#0090FF","#000000"],
+  "Williams":["#64C4FF","#041E42","#FFFFFF"],
+  "Racing Bulls":["#FFFFFF","#6692FF","#C8102E"],
+  "Haas":["#FFFFFF","#E6002B","#000000"],
+  "Audi":["#C8CED4","#F50537","#000000"],
+  "Cadillac":["#FFFFFF","#000000","#A8A9AD"]
 };
 function renderWinnerOptions(){
   const typeSelect=$("winnerSelectionType"), optionSelect=$("winnerSelection");
@@ -340,8 +366,10 @@ function winnerPalette(){
   const selected=$("winnerSelection")?.value||state.winnerSelection;
   if(type==="country")return COUNTRY_PALETTES[selected]||["#E10600","#FFFFFF","#00008B"];
   const driver=[...state.drivers.values()].find(d=>d.team_name===selected&&d.team_colour);
-  const color=driver?.team_colour?"#"+String(driver.team_colour).replace("#",""):"#E10600";
-  return [color];
+  const teamKey=Object.keys(TEAM_PALETTES).find(name=>String(selected).toLowerCase().includes(name.toLowerCase()));
+  const fallback=teamKey?TEAM_PALETTES[teamKey]:["#E10600","#FFFFFF","#00008B"];
+  const apiColor=driver?.team_colour?"#"+String(driver.team_colour).replace("#",""):"";
+  return apiColor?[apiColor,...fallback.slice(1)]:fallback;
 }
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -642,6 +670,37 @@ function triggerEvent(event){
   }
   toast(event.label+": "+(event.detail||"Race Control"));
 }
+async function sendWinnerCelebration(colors){
+  if(state.hueRestoring)return;
+  const effectToken=++state.hueEffectToken;
+  const ids=getTargetHueLightIds();
+  if(!ids.length){toast("Selecteer eerst de tv-kamer en keuken bij Hue om de winnaarsviering door beide kamers te laten gaan.");return;}
+  const pin=await getHuePin();
+  if(!pin)return;
+  try{
+    await captureHueOriginalStates(ids,pin);
+    const frames=Math.min(24,Math.max(12,ids.length*2));
+    for(let frame=0;frame<frames;frame++){
+      if(effectToken!==state.hueEffectToken)return;
+      const shift=frame%ids.length;
+      const lightColors=ids.map((id,index)=>{
+        const colorIndex=((index-shift)%colors.length+colors.length)%colors.length;
+        return {id,color:hexToHueXY(colors[colorIndex])};
+      });
+      await postHueCommand(pin,{lightIds:ids,lightColors,on:true,brightness:95});
+      if(effectToken!==state.hueEffectToken)return;
+      await wait(180);
+    }
+    if(effectToken!==state.hueEffectToken)return;
+    await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(colors[(index+frames)%colors.length])})),on:true,brightness:88});
+    if(effectToken!==state.hueEffectToken)return;
+    if(state.standby){
+      await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#00008b","#e10600","#00008b","#e10600"][index%5])})),on:true,brightness:65});
+      $("playerMode").textContent=state.playing?"SYNCHRONISEERT":"STAND-BY";
+    }
+    toast("Winnaarsfeest door "+ids.length+" Hue-lampen uitgevoerd · terug naar stand-by.");
+  }catch(error){toast(error.message||"Winnaarsfeest via Hue mislukt.");}
+}
 function showWinnerPreview(event){
   const winner=state.results.find(result=>Number(result.position)===1)||state.results[0];
   const name=winner?driverName(winner.driver_number):"Winnaar";
@@ -656,8 +715,8 @@ function showWinnerPreview(event){
     el.style.animationDelay=(index*35)+"ms";
   });
   $("previewName").textContent="WINNAAR · "+name;
-  $("previewCaption").textContent=(type==="team"?"Team: ":"Land: ")+(selected||"niet geselecteerd")+" · Automatische team- of vlagkleuren.";
-  if(state.playing)state.hueEffectPromise=sendHueColors(palette,"pulse",true);
+  $("previewCaption").textContent=(type==="team"?"Team: ":"Land: ")+(selected||"niet geselecteerd")+" · Kleurwave door alle geselecteerde kamers, daarna rood/blauwe stand-by.";
+  if(state.playing)state.hueEffectPromise=sendWinnerCelebration(palette);
 }
 function renderEffectSettings(){
   const items=[
