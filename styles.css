@@ -92,3 +92,10 @@ body.light .winner-mode-button.active{background:#fff1eb;color:#a53b24;border-co
 body.light .winner-effect-copy,body.light .winner-mode-note{color:#66778e}
 body.light .winner-test-controls label{color:#53647a}
 body.light .winner-test-controls select{background:#fff;color:#18253a;border-color:#d1dce8}
+
+
+.safety-car-picker{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft,rgba(255,255,255,.035))}
+.safety-car-picker>strong{display:block;font-size:.75rem;letter-spacing:.09em}
+.safety-car-picker>p,.safety-car-picker small{display:block;color:var(--muted);font-size:.8rem;line-height:1.45;margin:7px 0 10px}
+.safety-car-picker .hue-group-device{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:7px 0}
+.safety-car-picker select{max-width:58%;min-width:0;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text)}
