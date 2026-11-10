@@ -752,7 +752,7 @@ async function returnHueToStandby() {
       if (!pin) return;
       await postHueCommand(pin, {
         lightIds:ids,
-        lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#001f5b","#e10600","#001f5b","#e10600"][index%5])})),
+        lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#00008b","#e10600","#00008b","#e10600"][index%5])})),
         on:true,brightness:65
       });
       $("playerMode").textContent = state.playing ? "SYNCHRONISEERT" : "STAND-BY";
@@ -823,7 +823,7 @@ async function sendHueColors(colors, mode="pulse", returnToStandby=false){
     if (returnToStandby && state.standby) {
       await postHueCommand(pin,{
         lightIds:ids,
-        lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#001f5b","#e10600","#001f5b","#e10600"][index%5])})),
+        lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#00008b","#e10600","#00008b","#e10600"][index%5])})),
         on:true,brightness:65
       });
       $("playerMode").textContent = state.playing ? "SYNCHRONISEERT" : "STAND-BY";
@@ -849,14 +849,14 @@ function showPreview(type,caption,force=false,physical=false){
   if(physical || state.playing) state.hueEffectPromise = sendHueColors(palette,"pulse",state.playing);
 }
 function showStandbyPreview(physical=false){
-  const colors=["#e10600","#001f5b","#e10600","#001f5b","#e10600"];
+  const colors=["#e10600","#00008b","#e10600","#00008b","#e10600"];
   $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
     el.style.background=colors[index];
     el.style.animation="none";
   });
   $("previewName").textContent="STANDBY · RED BULL";
   $("previewCaption").textContent="Rood/blauwe Red Bull-stand-by, gelijktijdig op alle geselecteerde lampen.";
-  if(physical) state.hueEffectPromise = sendHueColors(["#e10600","#001f5b"],"steady");
+  if(physical) state.hueEffectPromise = sendHueColors(["#e10600","#00008b"],"steady");
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
