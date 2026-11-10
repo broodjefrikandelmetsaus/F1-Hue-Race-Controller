@@ -643,12 +643,12 @@ function hexToHueXY(hex){
   const sum=X+Y+Z;return sum?{x:X/sum,y:Y/sum}:{x:0.3127,y:0.329};
 }
 async function getHuePin() {
-  let pin = sessionStorage.getItem("fh_hue_pin");
+  let pin = localStorage.getItem("fh_hue_pin");
   if (!pin) {
-    pin = prompt("Voer je Hue-toegangscode in om de lampen echt aan te sturen:");
+    pin = prompt("Voer eenmalig je 6-cijferige Hue-toegangscode in:");
     if (!pin) return null;
-    if (!/^\\d{6}$/.test(pin)) { toast("De toegangscode moet 6 cijfers hebben."); return null; }
-    sessionStorage.setItem("fh_hue_pin", pin);
+    if (!/^\d{6}$/.test(pin)) { toast("De toegangscode moet uit precies 6 cijfers bestaan."); return null; }
+    localStorage.setItem("fh_hue_pin", pin);
   }
   return pin;
 }
@@ -658,7 +658,10 @@ async function postHueCommand(pin, payload) {
     body: JSON.stringify({pin, ...payload})
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Hue-commando mislukt");
+  if (!response.ok) {
+    if (response.status === 401 && data.code === "invalid_pin") localStorage.removeItem("fh_hue_pin");
+    throw new Error(data.error || "Hue-commando mislukt");
+  }
   return data;
 }
 function getTargetHueLightIds() {
