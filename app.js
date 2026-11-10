@@ -646,7 +646,7 @@ function renderEffectSettings(){
     state.effects[key].colors[index]=input.value;
     saveEffects();
   }));
-  $("effectList").querySelectorAll("[data-preview]").forEach(button=>button.addEventListener("click",()=>showPreview(button.dataset.preview,"Handmatige effecttest",true)));
+  $("effectList").querySelectorAll("[data-preview]").forEach(button=>button.addEventListener("click",()=>showPreview(button.dataset.preview,"Handmatige effecttest",true,true)));
 }
 function saveEffects(){localStorage.setItem("fh_effects",JSON.stringify(state.effects));}
 function hexToHueXY(hex){
@@ -670,7 +670,7 @@ async function sendHueColors(colors){
   try{await Promise.all(requests);toast("Hue-effect verzonden naar "+ids.length+" geselecteerde lamp(en).");}
   catch(error){sessionStorage.removeItem("fh_hue_pin");toast(error.message||"Hue-aansturing mislukt.");}
 }
-function showPreview(type,caption,force=false){
+function showPreview(type,caption,force=false,physical=false){
   const setting=state.effects[type]||{enabled:true,colors:["#31dc86"]};
   if(!force&&!setting.enabled)return;
   const palette=setting.colors||["#31dc86"];
@@ -683,9 +683,9 @@ function showPreview(type,caption,force=false){
   });
   $("previewName").textContent=type.replaceAll("_"," ");
   $("previewCaption").textContent=(caption?caption+" · ":"")+"Preview op scherm en geselecteerde Hue-lampen.";
-  if(force || state.playing) sendHueColors(palette);
+  if(physical || state.playing) sendHueColors(palette);
 }
-function showStandbyPreview(){
+function showStandbyPreview(physical=false){
   const colors=["#e52e42","#102b59","#e52e42","#102b59","#e52e42"];
   $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
     el.style.background=colors[index];
@@ -693,7 +693,7 @@ function showStandbyPreview(){
   });
   $("previewName").textContent="STANDBY · RED BULL";
   $("previewCaption").textContent="Red Bull-standbykleuren naar de geselecteerde Hue-lampen.";
-  sendHueColors(colors);
+  if(physical) sendHueColors(colors);
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
@@ -717,7 +717,7 @@ $("offsetSlider").addEventListener("input",e=>updateOffset(e.target.value));
 document.querySelectorAll("[data-offset]").forEach(b=>b.addEventListener("click",()=>updateOffset(state.offset+Number(b.dataset.offset))));
 document.querySelectorAll("[data-preview]").forEach(b=>b.addEventListener("click",()=>showPreview(b.dataset.preview,"Handmatige effecttest")));
 $("standbyToggle").checked=state.standby;
-$("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));state.standby?showStandbyPreview():showPreview("BLUE","Stand-by staat uit",true);});
+$("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));state.standby?showStandbyPreview(true):showPreview("BLUE","Stand-by staat uit",true,false);});
 $("winnerTeamColor").value=state.winnerTeamColor;
 $("winnerCountryColor").value=state.winnerCountryColor;
 $("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamColor=e.target.value;localStorage.setItem("fh_winner_team",e.target.value);});
