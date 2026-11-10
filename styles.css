@@ -45,3 +45,17 @@ body.light .custom-winner-colors select{background:#f7f9fc;color:#18253a;border-
 .device-info{display:grid;gap:3px;min-width:0}
 .device-info b{font-size:13px;overflow-wrap:anywhere}
 .device-info small{font-size:11px;color:var(--muted,#9aa8bd)}
+
+
+/* Hue room / zone selector */
+.hue-room-picker{margin-top:13px;padding:12px;border:1px solid rgba(71,216,232,.19);border-radius:12px;background:rgba(71,216,232,.045)}
+.room-picker-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.room-picker-top strong{font-size:11px;color:var(--text)}
+.room-picker-top span{font:8px 'DM Mono',monospace;color:#8da0b7;letter-spacing:.04em;text-align:right}
+.hue-room-picker select{width:100%;border:1px solid #30425e;border-radius:8px;background:#0a1322;color:#eaf0f8;padding:11px 30px 11px 10px;outline:none;font-size:11px}
+.hue-room-picker select:focus{border-color:var(--cyan)}
+.hue-room-picker select:disabled{opacity:.55;cursor:not-allowed}
+.hue-room-picker p{font-size:9px;line-height:1.55;color:#93a3b9;margin:8px 1px 0}
+body.light .hue-room-picker{background:#f4f9fc;border-color:#d5e5ee}
+body.light .hue-room-picker select{background:#fff;color:#18253a;border-color:#d1dce8}
+body.light .hue-room-picker p{color:#66778e}
