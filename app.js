@@ -673,7 +673,7 @@ function renderResults(){
     box.insertAdjacentHTML("beforeend",'<div class="podium-empty">Uitslag nog niet gepubliceerd in de databron.</div>');
     return;
   }
-  const top=state.results.slice(0,3);
+  const top=state.results.filter(r=>Number(r.position)<=3);
   const podium=top.map((r,i)=>'<div class="podium-row"><span class="podium-place">'+(r.position||i+1)+'</span><div><strong>'+escapeHtml(driverName(r.driver_number))+'</strong><small>'+escapeHtml(driverTeam(r.driver_number))+'</small></div></div>').join("");
   box.insertAdjacentHTML("beforeend",
     '<div class="results-reveal-row"><span class="results-spoiler-note">'+(state.resultsRevealed?"Uitslag onthuld":"Spoiler verborgen")+'</span><button type="button" class="button button-secondary results-reveal-button" id="revealResultsButton">'+(state.resultsRevealed?"Verberg uitslag":"Onthul uitslag")+'</button></div>'+
@@ -741,59 +741,77 @@ function triggerEvent(event){
   }
   toast(event.label+": "+(event.detail||"Race Control"));
 }
-async function sendWinnerCelebration(colors){
-  if(state.hueRestoring)return;
+async function sendWinnerCelebration(colors,returnToStandby=true){
+  if(state.hueRestoring)return false;
   const effectToken=++state.hueEffectToken;
   const ids=getTargetHueLightIds();
-  if(!ids.length){toast("Selecteer eerst de tv-kamer en keuken bij Hue om de winnaarsviering door beide kamers te laten gaan.");return;}
+  if(!ids.length){toast("Selecteer eerst de tv-kamer en keuken bij Hue om de winnaarsviering door beide kamers te laten gaan.");return false;}
   const pin=await getHuePin();
-  if(!pin)return;
+  if(!pin)return false;
   try{
     await captureHueOriginalStates(ids,pin);
     const frames=Math.min(24,Math.max(12,ids.length*2));
     for(let frame=0;frame<frames;frame++){
-      if(effectToken!==state.hueEffectToken)return;
+      if(effectToken!==state.hueEffectToken)return false;
       const shift=frame%ids.length;
       const lightColors=ids.map((id,index)=>{
         const colorIndex=((index-shift)%colors.length+colors.length)%colors.length;
         return {id,color:hexToHueXY(colors[colorIndex])};
       });
       await postHueCommand(pin,{lightIds:ids,lightColors,on:true,brightness:95});
-      if(effectToken!==state.hueEffectToken)return;
+      if(effectToken!==state.hueEffectToken)return false;
       await wait(180);
     }
-    if(effectToken!==state.hueEffectToken)return;
+    if(effectToken!==state.hueEffectToken)return false;
     await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(colors[(index+frames)%colors.length])})),on:true,brightness:88});
-    if(effectToken!==state.hueEffectToken)return;
-    if(state.standby){
+    if(effectToken!==state.hueEffectToken)return false;
+    if(returnToStandby&&state.standby){
       await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#00008b","#e10600","#00008b","#e10600"][index%5])})),on:true,brightness:65});
       $("playerMode").textContent=state.playing?"SYNCHRONISEERT":"STAND-BY";
     }
-    toast("Winnaarsfeest door "+ids.length+" Hue-lampen uitgevoerd · terug naar stand-by.");
-  }catch(error){toast(error.message||"Winnaarsfeest via Hue mislukt.");}
+    if(returnToStandby)toast("Winnaarsfeest door "+ids.length+" Hue-lampen uitgevoerd · terug naar stand-by.");
+    return true;
+  }catch(error){toast(error.message||"Winnaarsfeest via Hue mislukt.");return false;}
+}
+async function playWinnerCelebrations(winners){
+  const celebrations=winners.map(result=>{
+    const driver=state.drivers.get(Number(result.driver_number));
+    return driver?{result,driver,info:winnerPaletteInfo(driver,state.winnerEffectMode)}:null;
+  });
+  if(celebrations.some(item=>!item)){
+    toast("Niet alle P1-coureurs zijn herkenbaar in de deelnemersgegevens; winnaarsviering overgeslagen.");
+    return;
+  }
+  const first=celebrations[0];
+  previewWinnerColors("WINNAARSVIERING",first.info.palette,
+    celebrations.length>1
+      ?"Gedeelde eerste plaats. De kleurensets worden één voor één afgespeeld. Namen verschijnen pas na de volledige viering."
+      :"Winnaarskleuren worden afgespeeld. De naam verschijnt pas nadat het effect klaar is.");
+  for(let i=0;i<celebrations.length;i++){
+    const item=celebrations[i];
+    const succeeded=await sendWinnerCelebration(item.info.palette,i===celebrations.length-1);
+    if(!succeeded)return;
+  }
+  const names=celebrations.map(item=>driverName(item.result.driver_number));
+  const last=celebrations[celebrations.length-1];
+  const label=last.info.mode==="team"?"Teamkleuren":"Landkleuren";
+  const descriptions=celebrations.map(item=>item.info.name+(item.info.known?"":" (kleurset niet exact herkend)"));
+  previewWinnerColors(
+    (names.length>1?"WINNAARS · ":"WINNAAR · ")+names.join(" & "),
+    last.info.palette,
+    label+": "+descriptions.join(" → ")+" · alle P1-effecten zijn afgespeeld."
+  );
 }
 function showWinnerPreview(event){
-  const winner=state.results.find(result=>Number(result.position)===1);
-  if(!winner){
+  const winners=state.results.filter(result=>Number(result.position)===1);
+  if(!winners.length){
     previewWinnerColors("WINNAAR NIET BEKEND",["#E10600","#FFFFFF","#111111"],
       "De databron heeft nog geen officiële P1-uitslag teruggegeven. Er wordt geen winnaarskleur afgespeeld.");
     toast("Geen P1-classificatie gevonden; winnaarseffect overgeslagen.");
     return;
   }
-  const driver=state.drivers.get(Number(winner.driver_number));
-  if(!driver){
-    previewWinnerColors("WINNAAR NIET HERKEND",["#E10600","#FFFFFF","#111111"],
-      "De coureur van P1 ontbreekt in de deelnemersgegevens. Er wordt geen willekeurige kleur gekozen.");
-    toast("P1 staat in de uitslag, maar de coureurgegevens ontbreken.");
-    return;
-  }
-  const info=winnerPaletteInfo(driver,state.winnerEffectMode);
-  const name=driverName(winner.driver_number);
-  const label=info.mode==="team"?"Teamkleuren":"Landkleuren";
-  const detail=info.known?"":" · kleurset niet exact herkend";
-  previewWinnerColors("WINNAAR · "+name,info.palette,
-    label+": "+info.name+detail+" · automatisch bepaald op basis van P1. Daarna terug naar rood/blauwe stand-by.");
-  if(state.playing)state.hueEffectPromise=sendWinnerCelebration(info.palette);
+  if(!state.playing)return;
+  state.hueEffectPromise=playWinnerCelebrations(winners);
 }
 function renderEffectSettings(){
   const items=[
