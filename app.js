@@ -7,6 +7,11 @@ const state = {
   events: [], drivers: new Map(), results: [], duration: 0,
   offset: Number(localStorage.getItem("fh_offset") || 0),
   standby: localStorage.getItem("fh_standby") !== "false",
+  hueGroups: [],
+  selectedHueGroupId: localStorage.getItem("fh_hue_group_id") || "",
+  selectedHueGroupType: localStorage.getItem("fh_hue_group_type") || "",
+  selectedHueGroupName: localStorage.getItem("fh_hue_group_name") || "",
+  selectedHueGroupedLightId: localStorage.getItem("fh_hue_grouped_light_id") || "",
   enabled: new Set(JSON.parse(localStorage.getItem("fh_enabled") || '["FLAG_GREEN","FLAG_YELLOW","FLAG_RED","FLAG_CHEQUERED","SAFETY_CAR","VSC","PIT_STOP","OVERTAKE","PENALTY","INCIDENT","FASTEST_LAP","TYRE_CHANGE"]')),
   effects: JSON.parse(localStorage.getItem("fh_effects") || "null") || {
     GREEN:{enabled:true,colors:["#31dc86"]},
@@ -87,49 +92,171 @@ async function loadHueConnectionStatus() {
   }
 }
  
+async function fetchHueResource(resource) {
+  const response = await fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=" + encodeURIComponent(resource), {
+    headers: { Accept: "application/json" }, cache: "no-store"
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    const error = new Error(result.error || "Hue-resource kon niet worden geladen.");
+    error.code = result.code;
+    error.status = result.status;
+    throw error;
+  }
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+function saveHueGroupSelection(group) {
+  state.selectedHueGroupId = group?.id || "";
+  state.selectedHueGroupType = group?.kind || "";
+  state.selectedHueGroupName = group?.name || "";
+  state.selectedHueGroupedLightId = group?.groupedLightId || "";
+  if (group) {
+    localStorage.setItem("fh_hue_group_id", group.id);
+    localStorage.setItem("fh_hue_group_type", group.kind);
+    localStorage.setItem("fh_hue_group_name", group.name);
+    localStorage.setItem("fh_hue_grouped_light_id", group.groupedLightId);
+  } else {
+    ["fh_hue_group_id","fh_hue_group_type","fh_hue_group_name","fh_hue_grouped_light_id"].forEach(key=>localStorage.removeItem(key));
+  }
+  const copy = $("hueRoomCopy");
+  if (copy) {
+    copy.textContent = group
+      ? "✓ " + group.name + " is geselecteerd. Deze groep is opgeslagen als doel voor de Hue-lichtbediening."
+      : "Kies een kamer of zone om als doel voor de Hue-lichtbediening in te stellen.";
+  }
+}
+
+function renderHueGroups(groups) {
+  const select = $("hueRoomSelect");
+  const count = $("hueRoomCount");
+  if (!select || !count) return;
+  state.hueGroups = groups;
+  count.textContent = groups.length + " kamer(s) / zone(s)";
+  if (!groups.length) {
+    select.innerHTML = '<option value="">Geen Hue-kamers of zones gevonden</option>';
+    select.disabled = true;
+    saveHueGroupSelection(null);
+    $("hueRoomCopy").textContent = "De Bridge heeft geen kamers of zones teruggegeven.";
+    return;
+  }
+  select.innerHTML = '<option value="">Selecteer een kamer of groep…</option>' +
+    groups.map(group => {
+      const key = group.kind + ":" + group.id;
+      const label = group.name + (group.kind === "room" ? " · Kamer" : " · Zone");
+      const unavailable = !group.groupedLightId;
+      return '<option value="' + escapeHtml(key) + '"' + (unavailable ? " disabled" : "") + '>' +
+        escapeHtml(label + (unavailable ? " · niet beschikbaar voor groepsbediening" : "")) + '</option>';
+    }).join("");
+  select.disabled = false;
+  const saved = groups.find(group =>
+    group.id === state.selectedHueGroupId &&
+    group.kind === state.selectedHueGroupType &&
+    !!group.groupedLightId
+  );
+  const preferredTV = groups.find(group => group.groupedLightId && group.name.trim().toLowerCase() === "tv") ||
+    groups.find(group => group.groupedLightId && group.name.toLowerCase().includes("tv"));
+  const chosen = saved || preferredTV || null;
+  if (chosen) {
+    select.value = chosen.kind + ":" + chosen.id;
+    saveHueGroupSelection(chosen);
+  } else {
+    select.value = "";
+    saveHueGroupSelection(null);
+    $("hueRoomCopy").textContent = "Kies een kamer of zone. Staat TV ertussen? Selecteer die dan hier.";
+  }
+}
+
+function onHueRoomSelectionChange(value) {
+  const group = state.hueGroups.find(item => item.kind + ":" + item.id === value);
+  if (!group || !group.groupedLightId) return;
+  saveHueGroupSelection(group);
+  toast("Hue-groep " + group.name + " geselecteerd.");
+}
+
 async function loadHueDevices() {
   const button = $("hueLoadDevicesButton");
   const list = $("hueDeviceList");
   if (!button || !list) return;
   button.disabled = true;
-  button.textContent = "Hue-lampen zoeken…";
+  button.textContent = "Hue-apparaten zoeken…";
   list.innerHTML = '<div class="device-empty">Verbinding maken met de Hue Bridge…</div>';
+  const roomCount = $("hueRoomCount");
+  const roomSelect = $("hueRoomSelect");
+  if (roomCount) roomCount.textContent = "Kamers ophalen…";
+  if (roomSelect) roomSelect.disabled = true;
   try {
-    const response = await fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=light", {
-      headers: { Accept: "application/json" }, cache: "no-store"
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      if (result.code === "reauthorize") throw new Error("De Hue-toestemming moet opnieuw worden bevestigd. Koppel je account opnieuw.");
-      if (result.code === "refresh_failed") throw new Error("De beveiligde Hue-toegang kon niet worden vernieuwd. Probeer later opnieuw.");
-      if (result.code === "remote_linkbutton_failed") throw new Error("Philips Hue kon de Bridge-autorisatie op afstand niet openen (HTTP " + result.status + "). Je account blijft gekoppeld; er zijn geen lampen aangestuurd.");
-      if (result.code === "bridge_registration_failed" || result.code === "bridge_registration_rejected" || result.code === "bridge_linkbutton_not_ready") throw new Error("Philips Hue heeft de Bridge-registratie nog niet afgerond. Je account blijft gekoppeld; probeer het straks opnieuw. Er zijn geen lampen aangestuurd.");
-      if (result.code === "remote_api_error") throw new Error("De Bridge-registratie is gedaan, maar Philips Hue gaf geen lampgegevens terug (HTTP " + result.status + ").");
-      throw new Error(result.error || "De Hue-lampen konden niet worden opgehaald.");
-    }
-    const lights = Array.isArray(result.data) ? result.data : [];
+    // This first request can perform the one-time Remote API Bridge registration.
+    const lights = await fetchHueResource("light");
     if (!lights.length) {
       list.innerHTML = '<div class="device-empty">De Bridge reageert, maar er zijn geen lampen gevonden.</div>';
     } else {
       list.innerHTML = '<div class="device-summary">' + lights.length + ' Hue-lamp(en) gevonden</div>' +
         lights.map(light => {
-          const caps = light.color ? "Kleur" : (light.colorTemperature !== null ? "Wittemperatuur" : "Wit / dimbaar");
+          const caps = light.hasColor ? "Kleur" : (light.hasColorTemperature ? "Wittemperatuur" : "Wit / dimbaar");
           const status = light.on === null ? "Status onbekend" : (light.on ? "Aan" : "Uit");
           const brightness = light.brightness === null ? "" : " · " + Math.round(light.brightness) + "%";
           return '<div class="hue-device-row"><span class="device-bulb">●</span><span class="device-info"><b>' +
             escapeHtml(light.name) + '</b><small>' + caps + ' · ' + status + brightness + '</small></span></div>';
         }).join("");
     }
-    button.textContent = "Lampgegevens vernieuwen";
-    toast((result.registeredNow ? "Hue Bridge geregistreerd · " : "") + lights.length + " Hue-lamp(en) gevonden.");
+
+    // Load rooms, zones and their grouped-light control resources after registration.
+    const [roomsResult, zonesResult, groupedResult] = await Promise.allSettled([
+      fetchHueResource("room"),
+      fetchHueResource("zone"),
+      fetchHueResource("grouped_light")
+    ]);
+    const rooms = roomsResult.status === "fulfilled" ? roomsResult.value : [];
+    const zones = zonesResult.status === "fulfilled" ? zonesResult.value : [];
+    const groupedLights = groupedResult.status === "fulfilled" ? groupedResult.value : [];
+    const groupResources = [
+      ...rooms.map(group => ({ ...group, kind: "room" })),
+      ...zones.map(group => ({ ...group, kind: "zone" }))
+    ];
+    const groups = groupResources.map(group => {
+      const service = Array.isArray(group.services)
+        ? group.services.find(item => item.type === "grouped_light")
+        : null;
+      const ownerMatch = groupedLights.find(item =>
+        item.owner && item.owner.id === group.id &&
+        (!item.owner.type || item.owner.type === group.kind)
+      );
+      return {
+        id: group.id,
+        kind: group.kind,
+        name: group.name || (group.kind === "room" ? "Naamloze kamer" : "Naamloze zone"),
+        groupedLightId: service?.id || ownerMatch?.id || ""
+      };
+    }).sort((a,b) => a.name.localeCompare(b.name, "nl"));
+    renderHueGroups(groups);
+
+    const roomLoadFailed = roomsResult.status === "rejected" && zonesResult.status === "rejected";
+    if (roomLoadFailed) {
+      $("hueRoomCount").textContent = "Niet beschikbaar";
+      $("hueRoomCopy").textContent = "De lampen zijn geladen, maar Hue gaf de kamers en zones niet terug. Probeer opnieuw.";
+    }
+    button.textContent = "Hue-apparaten vernieuwen";
+    toast(lights.length + " lamp(en) · " + groups.length + " kamer(s) / zone(s) gevonden.");
   } catch (error) {
-    list.innerHTML = '<div class="device-error">' + escapeHtml(error.message || "Hue Bridge niet bereikbaar.") + '</div>';
+    if (error.code === "reauthorize") {
+      list.innerHTML = '<div class="device-error">De Hue-toestemming moet opnieuw worden bevestigd. Koppel je account opnieuw.</div>';
+    } else if (error.code === "refresh_failed") {
+      list.innerHTML = '<div class="device-error">De beveiligde Hue-toegang kon niet worden vernieuwd. Probeer later opnieuw.</div>';
+    } else if (error.code === "remote_linkbutton_failed") {
+      list.innerHTML = '<div class="device-error">Philips Hue kon de Bridge-autorisatie op afstand niet openen (HTTP ' + error.status + '). Je account blijft gekoppeld; er zijn geen lampen aangestuurd.</div>';
+    } else if (["bridge_registration_failed","bridge_registration_rejected","bridge_linkbutton_not_ready"].includes(error.code)) {
+      list.innerHTML = '<div class="device-error">Philips Hue heeft de Bridge-registratie nog niet afgerond. Je account blijft gekoppeld; probeer straks opnieuw. Er zijn geen lampen aangestuurd.</div>';
+    } else {
+      list.innerHTML = '<div class="device-error">' + escapeHtml(error.message || "Hue Bridge niet bereikbaar.") + '</div>';
+    }
     button.textContent = "Opnieuw proberen";
+    if (roomCount) roomCount.textContent = "Niet geladen";
+    if (roomSelect) roomSelect.disabled = true;
   } finally {
     button.disabled = false;
   }
 }
-
 function setStatus(message, busy=false) {
   $("dataStatus").textContent = message;
   $("loadRaceButton").disabled = busy || !state.session || sessionStatus(state.session) !== "AFGELOPEN";
@@ -527,6 +654,7 @@ function updateOffset(value){
   localStorage.setItem("fh_offset",String(state.offset));
 }
 $("hueLoadDevicesButton")?.addEventListener("click", loadHueDevices);
+$("hueRoomSelect")?.addEventListener("change", e=>onHueRoomSelectionChange(e.target.value));
 $("yearSelect").addEventListener("change",e=>loadMeetings(e.target.value));
 $("refreshCalendarButton").addEventListener("click",()=>refreshCalendar(false));
 $("meetingSelect").addEventListener("change",e=>loadSessions(e.target.value));
