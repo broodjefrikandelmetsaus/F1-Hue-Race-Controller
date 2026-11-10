@@ -9,6 +9,7 @@ const state = {
   standby: localStorage.getItem("fh_standby") !== "false",
   hueGroups: [],
   selectedHueLights: new Set(JSON.parse(localStorage.getItem("fh_hue_selected_lights") || "[]")),
+  selectedHueGroupKeys: new Set(JSON.parse(localStorage.getItem("fh_hue_selected_groups") || "[]")),
   resultsRevealed: false,
   selectedHueGroupId: localStorage.getItem("fh_hue_group_id") || "",
   selectedHueGroupType: localStorage.getItem("fh_hue_group_type") || "",
@@ -108,69 +109,51 @@ async function fetchHueResource(resource) {
   return Array.isArray(result.data) ? result.data : [];
 }
 
-function saveHueGroupSelection(group) {
-  state.selectedHueGroupId = group?.id || "";
-  state.selectedHueGroupType = group?.kind || "";
-  state.selectedHueGroupName = group?.name || "";
-  state.selectedHueGroupedLightId = group?.groupedLightId || "";
-  if (group) {
-    localStorage.setItem("fh_hue_group_id", group.id);
-    localStorage.setItem("fh_hue_group_type", group.kind);
-    localStorage.setItem("fh_hue_group_name", group.name);
-    localStorage.setItem("fh_hue_grouped_light_id", group.groupedLightId);
-  } else {
-    ["fh_hue_group_id","fh_hue_group_type","fh_hue_group_name","fh_hue_grouped_light_id"].forEach(key=>localStorage.removeItem(key));
-  }
+function saveHueGroupSelections(keys) {
+  state.selectedHueGroupKeys = new Set(keys);
+  localStorage.setItem("fh_hue_selected_groups", JSON.stringify([...state.selectedHueGroupKeys]));
+  const chosen = state.hueGroups.filter(group => state.selectedHueGroupKeys.has(group.kind + ":" + group.id));
+  const totalLights = [...new Set(chosen.flatMap(group => group.lightIds || []))].length;
   const copy = $("hueRoomCopy");
-  if (copy) {
-    copy.textContent = group
-      ? "✓ " + group.name + " is geselecteerd. Deze groep is opgeslagen als doel voor de Hue-lichtbediening."
-      : "Kies een kamer of zone om als doel voor de Hue-lichtbediening in te stellen.";
-  }
+  if (copy) copy.textContent = chosen.length
+    ? "✓ " + chosen.map(group => group.name).join(", ") + " geselecteerd · " + totalLights + " unieke lamp(en) tegelijk."
+    : "Selecteer één of meer kamers of zones. Je kunt ook losse lampen aanvinken.";
 }
-
 function renderHueGroups(groups) {
-  const select = $("hueRoomSelect");
+  const picker = $("hueRoomOptions");
   const count = $("hueRoomCount");
-  if (!select || !count) return;
+  if (!picker || !count) return;
   state.hueGroups = groups;
   count.textContent = groups.length + " kamer(s) / zone(s)";
   if (!groups.length) {
-    select.innerHTML = '<option value="">Geen Hue-kamers of zones gevonden</option>';
-    select.disabled = true;
-    saveHueGroupSelection(null);
+    picker.innerHTML = '<div class="device-empty">Geen Hue-kamers of zones gevonden</div>';
+    saveHueGroupSelections([]);
     $("hueRoomCopy").textContent = "De Bridge heeft geen kamers of zones teruggegeven.";
     return;
   }
-  select.innerHTML = '<option value="">Selecteer een kamer of groep…</option>' +
-    groups.map(group => {
-      const key = group.kind + ":" + group.id;
-      const label = group.name + (group.kind === "room" ? " · Kamer" : " · Zone");
-      const unavailable = !group.lightIds?.length;
-      return '<option value="' + escapeHtml(key) + '"' + (unavailable ? " disabled" : "") + '>' +
-        escapeHtml(label + (unavailable ? " · geen lampen gevonden" : " · " + group.lightIds.length + " lamp(en)")) + '</option>';
-    }).join("");
-  select.disabled = false;
-  const saved = groups.find(group => group.id === state.selectedHueGroupId &&
-    group.kind === state.selectedHueGroupType && !!group.lightIds?.length);
-  const preferredTV = groups.find(group => group.lightIds?.length && group.name.trim().toLowerCase() === "tv") ||
-    groups.find(group => group.lightIds?.length && group.name.toLowerCase().includes("tv"));
-  const chosen = saved || preferredTV || null;
-  if (chosen) {
-    select.value = chosen.kind + ":" + chosen.id;
-    saveHueGroupSelection(chosen);
-  } else {
-    select.value = "";
-    saveHueGroupSelection(null);
-    $("hueRoomCopy").textContent = "Kies een kamer of zone. Staat TV ertussen? Selecteer die dan hier.";
+  const validKeys = new Set(groups.filter(group => group.lightIds?.length).map(group => group.kind + ":" + group.id));
+  state.selectedHueGroupKeys = new Set([...state.selectedHueGroupKeys].filter(key => validKeys.has(key)));
+  if (!state.selectedHueGroupKeys.size) {
+    const preferredTV = groups.find(group => group.lightIds?.length && group.name.trim().toLowerCase() === "tv") ||
+      groups.find(group => group.lightIds?.length && group.name.toLowerCase().includes("tv"));
+    if (preferredTV) state.selectedHueGroupKeys.add(preferredTV.kind + ":" + preferredTV.id);
   }
-}
-
-function onHueRoomSelectionChange(value) {
-  const group = state.hueGroups.find(item => item.kind + ":" + item.id === value);
-  if (!group || !group.lightIds?.length) return;
-  saveHueGroupSelection(group);
-  toast("Hue-kamer " + group.name + " geselecteerd · " + group.lightIds.length + " lamp(en).");
+  picker.innerHTML = groups.map(group => {
+    const key = group.kind + ":" + group.id;
+    const label = group.name + (group.kind === "room" ? " · Kamer" : " · Zone");
+    const unavailable = !group.lightIds?.length;
+    const checked = state.selectedHueGroupKeys.has(key) ? " checked" : "";
+    return '<label class="hue-room-option' + (unavailable ? ' is-disabled' : '') + '">' +
+      '<input type="checkbox" data-hue-group-key="' + escapeHtml(key) + '"' + checked + (unavailable ? " disabled" : "") + '>' +
+      '<span><b>' + escapeHtml(label) + '</b><small>' + (unavailable ? "Geen lampen gevonden" : group.lightIds.length + " lamp(en)") + '</small></span></label>';
+  }).join("");
+  picker.querySelectorAll("[data-hue-group-key]").forEach(input => input.addEventListener("change", () => {
+    const keys = new Set(state.selectedHueGroupKeys);
+    if (input.checked) keys.add(input.dataset.hueGroupKey); else keys.delete(input.dataset.hueGroupKey);
+    saveHueGroupSelections(keys);
+    toast(keys.size + " Hue-kamer(s)/zone(s) geselecteerd.");
+  }));
+  saveHueGroupSelections(state.selectedHueGroupKeys);
 }
 
 async function loadHueDevices() {
@@ -181,7 +164,7 @@ async function loadHueDevices() {
   button.textContent = "Hue-apparaten zoeken…";
   list.innerHTML = '<div class="device-empty">Verbinding maken met de Hue Bridge…</div>';
   const roomCount = $("hueRoomCount");
-  const roomSelect = $("hueRoomSelect");
+  const roomSelect = $("hueRoomOptions");
   if (roomCount) roomCount.textContent = "Kamers ophalen…";
   if (roomSelect) roomSelect.disabled = true;
   try {
@@ -573,6 +556,7 @@ function pausePlayer(){
 function stopPlayer(reset=false){
   state.playing=false;clearInterval(state.timer);state.timer=null;
   if(reset){state.current=0;state.pausedAt=0;state.fired.clear();$("playerMode").textContent="WACHT OP RACE";$("playButton").textContent="▶ Start synchronisatie";updateClock();}
+  restoreHueOriginalStates();
 }
 function tick(){
   state.current=currentElapsed();
@@ -583,7 +567,7 @@ function tick(){
     }
   });
   updateClock();
-  if(state.current>=state.duration){pausePlayer();$("playerMode").textContent="REPLAY VOLTOOID";toast("De sessie is afgelopen.");}
+  if(state.current>=state.duration){state.playing=false;clearInterval(state.timer);state.timer=null;$("playerMode").textContent="REPLAY VOLTOOID";$("playButton").textContent="▶ Verder";restoreHueOriginalStates();toast("De sessie is afgelopen. De oorspronkelijke lampstanden worden hersteld.");}
 }
 function seek(seconds){
   const wasPlaying=state.playing;if(wasPlaying)pausePlayer();
@@ -657,35 +641,94 @@ function hexToHueXY(hex){
   const Z=rgb[0]*0.000088+rgb[1]*0.072310+rgb[2]*0.986039;
   const sum=X+Y+Z;return sum?{x:X/sum,y:Y/sum}:{x:0.3127,y:0.329};
 }
+async function getHuePin() {
+  let pin = sessionStorage.getItem("fh_hue_pin");
+  if (!pin) {
+    pin = prompt("Voer je Hue-toegangscode in om de lampen echt aan te sturen:");
+    if (!pin) return null;
+    if (!/^\\d{6}$/.test(pin)) { toast("De toegangscode moet 6 cijfers hebben."); return null; }
+    sessionStorage.setItem("fh_hue_pin", pin);
+  }
+  return pin;
+}
+async function postHueCommand(pin, payload) {
+  const response = await fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=light", {
+    method: "POST", headers: {"Content-Type":"application/json","Accept":"application/json"},
+    body: JSON.stringify({pin, ...payload})
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Hue-commando mislukt");
+  return data;
+}
+function getTargetHueLightIds() {
+  const selectedGroups = state.hueGroups.filter(group => state.selectedHueGroupKeys.has(group.kind + ":" + group.id));
+  const groupIds = selectedGroups.flatMap(group => group.lightIds || []);
+  return [...new Set(groupIds.length ? groupIds : [...state.selectedHueLights])];
+}
+async function captureHueOriginalStates(ids, pin) {
+  const snapshot = JSON.parse(localStorage.getItem("fh_hue_original_light_states") || "{}");
+  const missing = ids.filter(id => !snapshot[id]);
+  if (missing.length) {
+    const lights = await fetchHueResource("light");
+    for (const light of lights) {
+      if (!missing.includes(light.id)) continue;
+      snapshot[light.id] = {
+        on: light.on,
+        brightness: light.brightness,
+        color: light.color,
+        colorTemperature: light.colorTemperature
+      };
+    }
+    const absent = missing.filter(id => !snapshot[id]);
+    if (absent.length) throw new Error("De oorspronkelijke lampstanden konden niet voor alle lampen worden opgeslagen.");
+    localStorage.setItem("fh_hue_original_light_states", JSON.stringify(snapshot));
+  }
+}
+async function restoreHueOriginalStates() {
+  const snapshot = JSON.parse(localStorage.getItem("fh_hue_original_light_states") || "{}");
+  const ids = Object.keys(snapshot);
+  if (!ids.length) return;
+  const pin = await getHuePin();
+  if (!pin) return;
+  try {
+    for (const id of ids) {
+      const original = snapshot[id];
+      await postHueCommand(pin, {action:"restore", lightIds:[id], original});
+    }
+    localStorage.removeItem("fh_hue_original_light_states");
+    toast("Alle lampen staan weer op hun oorspronkelijke instellingen.");
+  } catch (error) {
+    toast("Herstellen is niet helemaal gelukt: " + (error.message || "onbekende fout") + ". De opgeslagen standen zijn bewaard; probeer Stop opnieuw.");
+  }
+}
 async function sendHueColors(colors, mode="pulse"){
-  const selectedGroup=state.hueGroups.find(group=>group.id===state.selectedHueGroupId&&group.kind===state.selectedHueGroupType);
-  const ids=selectedGroup?.lightIds?.length?[...selectedGroup.lightIds]:[...state.selectedHueLights];
-  if(!ids.length){toast("Selecteer eerst een Hue-kamer of lamp.");return;}
-  let pin=sessionStorage.getItem("fh_hue_pin");
-  if(!pin){pin=prompt("Voer je Hue-toegangscode in om de lampen echt aan te sturen:");if(!pin)return;if(!/^\d{6}$/.test(pin)){toast("De toegangscode moet 6 cijfers hebben.");return;}sessionStorage.setItem("fh_hue_pin",pin);}
-  const sendOne=async(id,color,brightness)=>{
-    const xy=hexToHueXY(color);
-    const response=await fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=light",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({pin,lightIds:[id],color:xy,brightness})});
-    const data=await response.json();
-    if(!response.ok)throw new Error(data.error||"Hue-commando mislukt");
-  };
-  try{
+  const ids = getTargetHueLightIds();
+  if(!ids.length){toast("Selecteer eerst één of meer Hue-kamers of lampen.");return;}
+  const pin = await getHuePin();
+  if(!pin)return;
+  try {
+    await captureHueOriginalStates(ids, pin);
+    const sendOne = (id, color, brightness, on=true) => {
+      const payload = {lightIds:[id], on};
+      if (color) payload.color = hexToHueXY(color);
+      if (on && brightness != null) payload.brightness = brightness;
+      return postHueCommand(pin, payload);
+    };
     if(mode==="steady"){
-      await Promise.all(ids.map((id,index)=>sendOne(id,colors[index%colors.length],82)));
-      toast("Stand-bykleuren toegepast op "+(selectedGroup?.name||ids.length+" lamp(en)")+".");
+      await Promise.all(ids.map((id,index)=>sendOne(id,colors[index%colors.length],82,true)));
+      toast("Stand-bykleuren toegepast op "+ids.length+" lamp(en).");
       return;
     }
     const pulses=colors.length>1?6:3;
     for(let pulse=0;pulse<pulses;pulse++){
-      await Promise.all(ids.map((id,index)=>sendOne(id,colors[(pulse+index)%colors.length],82)));
-      await wait(430);
-      await Promise.all(ids.map((id,index)=>sendOne(id,colors[(pulse+index)%colors.length],4)));
-      await wait(220);
+      await Promise.all(ids.map((id,index)=>sendOne(id,colors[(pulse+index)%colors.length],95,true)));
+      await wait(500);
+      await Promise.all(ids.map(id=>sendOne(id,null,null,false)));
+      await wait(500);
     }
-    await Promise.all(ids.map((id,index)=>sendOne(id,colors[(pulses-1+index)%colors.length],28)));
-    toast("Lichteffect 3× uitgevoerd op "+(selectedGroup?.name||ids.length+" lamp(en)")+".");
+    await Promise.all(ids.map((id,index)=>sendOne(id,colors[(pulses-1+index)%colors.length],65,true)));
+    toast("Snelle wedstrijdflitsen uitgevoerd op "+ids.length+" lamp(en).");
   }catch(error){
-    sessionStorage.removeItem("fh_hue_pin");
     toast(error.message||"Hue-aansturing mislukt.");
   }
 }
@@ -720,7 +763,6 @@ function updateOffset(value){
   localStorage.setItem("fh_offset",String(state.offset));
 }
 $("hueLoadDevicesButton")?.addEventListener("click", loadHueDevices);
-$("hueRoomSelect")?.addEventListener("change", e=>onHueRoomSelectionChange(e.target.value));
 $("yearSelect").addEventListener("change",e=>loadMeetings(e.target.value));
 $("refreshCalendarButton").addEventListener("click",()=>refreshCalendar(false));
 $("meetingSelect").addEventListener("change",e=>loadSessions(e.target.value));
