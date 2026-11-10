@@ -693,7 +693,7 @@ async function postHueCommand(pin, payload) {
 function getTargetHueLightIds() {
   const selectedGroups = state.hueGroups.filter(group => state.selectedHueGroupKeys.has(group.kind + ":" + group.id));
   const groupIds = selectedGroups.flatMap(group => group.lightIds || []).filter(id => !state.excludedHueLights.has(id));
-  return [...new Set(groupIds.length ? groupIds : [...state.selectedHueLights])];
+  return [...new Set(selectedGroups.length ? groupIds : [...state.selectedHueLights])];
 }
 function renderHueGroupLights(group, container) {
   const members = (group.lightIds || []).map(id => state.hueLights.find(light => light.id === id)).filter(Boolean);
