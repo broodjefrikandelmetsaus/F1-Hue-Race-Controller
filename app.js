@@ -466,6 +466,7 @@ function escapeHtml(value) {
 function raceControlType(item) {
   const flag = String(item.flag||"").toUpperCase().replaceAll(" ","_");
   const msg = String(item.message||"").toUpperCase();
+  const category = String(item.category||"").toUpperCase().replace(/[^A-Z]/g,"");
   if (flag.includes("CHEQUERED") || msg.includes("CHEQUERED")) return "FLAG_CHEQUERED";
   if (flag.includes("BLACK_AND_WHITE") || msg.includes("BLACK AND WHITE")) return "FLAG_BLACK_WHITE";
   if (flag.includes("DOUBLE_YELLOW") || msg.includes("DOUBLE YELLOW")) return "FLAG_DOUBLE_YELLOW";
@@ -475,10 +476,11 @@ function raceControlType(item) {
   if (flag === "RED" || msg.includes("RED FLAG")) return "FLAG_RED";
   if (flag === "BLUE" || msg.includes("BLUE FLAG")) return "FLAG_BLUE";
   if (flag === "BLACK" || msg.includes("BLACK FLAG")) return "FLAG_BLACK";
-  if (msg.includes("VIRTUAL SAFETY CAR END") || msg.includes("VSC END") || msg.includes("VSC ENDING")) return "VSC_END";
-  if (msg.includes("VIRTUAL SAFETY CAR") || msg.includes("VSC")) return "VSC";
-  if (msg.includes("SAFETY CAR") && /IN THIS LAP|ENDING|WITHDRAWN|END OF/.test(msg)) return "SAFETY_CAR_END";
-  if (msg.includes("SAFETY CAR") || msg.includes("SC DEPLOYED")) return "SAFETY_CAR";
+  if (msg.includes("VIRTUAL SAFETY CAR END") || msg.includes("VSC END") || msg.includes("VSC ENDING") || /VSC.*(ENDING|WITHDRAWN|IN THIS LAP)/.test(msg)) return "VSC_END";
+  if (category.includes("VIRTUALSAFETYCAR") && /(END|ENDING|WITHDRAWN|IN THIS LAP)/.test(msg)) return "VSC_END";
+  if (msg.includes("VIRTUAL SAFETY CAR") || msg.includes("VSC") || category.includes("VIRTUALSAFETYCAR")) return "VSC";
+  if ((msg.includes("SAFETY CAR") || category.includes("SAFETYCAR")) && /IN THIS LAP|ENDING|WITHDRAWN|END OF|RETURNING TO THE PIT/.test(msg)) return "SAFETY_CAR_END";
+  if (msg.includes("SAFETY CAR") || msg.includes("SC DEPLOYED") || category.includes("SAFETYCAR")) return "SAFETY_CAR";
   if (/PENALTY|DRIVE THROUGH|STOP.?GO|TIME PENALTY|DISQUALIF/.test(msg)) return "PENALTY";
   if (/CRASH|COLLISION|SPUN|STOPPED|DEBRIS|TRACK LIMIT|INCIDENT|RETIRED/.test(msg)) return "INCIDENT";
   return "SESSION";
@@ -502,8 +504,9 @@ function addEvent(list, raw, type, sessionStart, extra={}) {
 }
 function isVisible(event) {
   const filter = $("eventFilter").value;
-  if (filter === "flags") return event.type.startsWith("FLAG_") || ["SAFETY_CAR","VSC","SESSION"].includes(event.type);
-  if (filter === "other") return !event.type.startsWith("FLAG_") && !["SAFETY_CAR","VSC","SESSION"].includes(event.type);
+  const raceControlTypes = ["SAFETY_CAR","SAFETY_CAR_END","VSC","VSC_END","SESSION"];
+  if (filter === "flags") return event.type.startsWith("FLAG_") || raceControlTypes.includes(event.type);
+  if (filter === "other") return !event.type.startsWith("FLAG_") && !raceControlTypes.includes(event.type);
   return true;
 }
 function sessionStatus(session) {
@@ -680,7 +683,7 @@ async function loadRaceEvents() {
 }
 function renderStats(){
   $("statEvents").textContent=state.events.length;
-  $("statFlags").textContent=state.events.filter(e=>e.type.startsWith("FLAG_")||["SAFETY_CAR","VSC"].includes(e.type)).length;
+  $("statFlags").textContent=state.events.filter(e=>e.type.startsWith("FLAG_")||["SAFETY_CAR","SAFETY_CAR_END","VSC","VSC_END"].includes(e.type)).length;
 }
 function renderEvents(){
   const list=$("eventsList"), items=state.events.filter(isVisible);
@@ -937,6 +940,21 @@ function renderSafetyCarPicker(){
   $("safetyCarLeftSelect").addEventListener("change",e=>{state.safetyCarLeftLightId=e.target.value;localStorage.setItem("fh_sc_left",e.target.value);});
   $("safetyCarRightSelect").addEventListener("change",e=>{state.safetyCarRightLightId=e.target.value;localStorage.setItem("fh_sc_right",e.target.value);});
 }
+function previewSafetyCarEffect(){
+  const bars=$("lightPreview").querySelectorAll("span");
+  const colors=["#FF9D00","#FF9D00","#FF9D00","#FF9D00","#FF9D00"];
+  bars.forEach((el,index)=>{
+    el.style.background=colors[index%colors.length];
+    el.style.opacity="1";
+    el.style.animation="none";
+    void el.offsetWidth;
+    el.style.animation="safetyCarPreview .8s steps(2,end) 3";
+    el.style.animationDelay=(index*110)+"ms";
+  });
+  $("previewName").textContent="SAFETY CAR · ZWAAILICHT";
+  $("previewCaption").textContent="Links twee snelle flitsen, daarna rechts twee snelle flitsen · fysieke Hue-test wordt gestart.";
+  state.hueEffectPromise=sendSafetyCarBeacon(true);
+}
 async function sendSafetyCarBeacon(returnToStandby=true){
   const left=state.safetyCarLeftLightId,right=state.safetyCarRightLightId;
   if(!left||!right||left===right){toast("Kies bij Hue-instellingen twee verschillende lampen voor het Safety Car-zwaailicht.");return false;}
@@ -1138,6 +1156,7 @@ $("refreshCalendarButton").addEventListener("click",()=>refreshCalendar(false));
 $("meetingSelect").addEventListener("change",e=>loadSessions(e.target.value));
 $("sessionSelect").addEventListener("change",e=>selectSession(e.target.value));
 $("loadRaceButton").addEventListener("click",loadRaceEvents);
+$("safetyCarPreviewButton")?.addEventListener("click",previewSafetyCarEffect);
 $("playButton").addEventListener("click",startPlayer);
 $("pauseButton").addEventListener("click",pausePlayer);
 $("resetButton").addEventListener("click",()=>stopPlayer(true));
