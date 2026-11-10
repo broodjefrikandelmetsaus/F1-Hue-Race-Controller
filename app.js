@@ -625,7 +625,8 @@ function showWinnerPreview(event){
     el.style.animationDelay=(index*35)+"ms";
   });
   $("previewName").textContent="WINNAAR · "+name;
-  $("previewCaption").textContent=(team?team+" · ":"")+(state.winnerColorMode==="team"?"Teamkleur":"Eigen landkleur")+" · Visuele preview — fysieke Hue-bediening volgt na de Bridge-integratie.";
+  $("previewCaption").textContent=(team?team+" · ":"")+(state.winnerColorMode==="team"?"Teamkleur":"Eigen landkleur")+" · Winnaars-preview op alle geselecteerde lampen.";
+  if (state.playing) state.hueEffectPromise = sendHueColors([color]);
 }
 function renderEffectSettings(){
   const items=[
@@ -738,6 +739,11 @@ async function captureHueOriginalStates(ids, pin) {
   }
 }
 async function returnHueToStandby() {
+  const activeEffect = state.hueEffectPromise;
+  state.hueEffectToken++;
+  if (activeEffect) {
+    try { await activeEffect; } catch (_) {}
+  }
   if (state.standby) {
     try {
       const ids = getTargetHueLightIds();
@@ -836,13 +842,13 @@ function showPreview(type,caption,force=false,physical=false){
   if(physical || state.playing) state.hueEffectPromise = sendHueColors(palette);
 }
 function showStandbyPreview(physical=false){
-  const colors=["#e10600","#001f5b","#e10600","#001f5b","#e10600"];
+  const colors=["#001f5b","#001f5b","#001f5b","#001f5b","#001f5b"];
   $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
     el.style.background=colors[index];
     el.style.animation="none";
   });
   $("previewName").textContent="STANDBY · RED BULL";
-  $("previewCaption").textContent="Red Bull-standbykleuren naar de geselecteerde Hue-lampen.";
+  $("previewCaption").textContent="Alle geselecteerde lampen tegelijk in blauwe Red Bull-stand-by.";
   if(physical) state.hueEffectPromise = sendHueColors(["#001f5b"],"steady");
 }
 function updateOffset(value){
