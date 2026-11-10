@@ -7,7 +7,8 @@ const state = {
   events: [], drivers: new Map(), results: [], duration: 0,
   offset: Number(localStorage.getItem("fh_offset") || 0),
   standby: localStorage.getItem("fh_standby") !== "false",
-  hueGroups: [],
+  hueGroups: [], hueLights: [],
+  excludedHueLights: new Set(JSON.parse(localStorage.getItem("fh_hue_excluded_lights") || "[]")),
   selectedHueLights: new Set(JSON.parse(localStorage.getItem("fh_hue_selected_lights") || "[]")),
   selectedHueGroupKeys: new Set(JSON.parse(localStorage.getItem("fh_hue_selected_groups") || "[]")),
   hueEffectToken: 0, hueEffectPromise: null, hueRestoring: false,
@@ -144,15 +145,30 @@ function renderHueGroups(groups) {
     const label = group.name + (group.kind === "room" ? " · Kamer" : " · Zone");
     const unavailable = !group.lightIds?.length;
     const checked = state.selectedHueGroupKeys.has(key) ? " checked" : "";
-    return '<label class="hue-room-option' + (unavailable ? ' is-disabled' : '') + '">' +
-      '<input type="checkbox" data-hue-group-key="' + escapeHtml(key) + '"' + checked + (unavailable ? " disabled" : "") + '>' +
-      '<span><b>' + escapeHtml(label) + '</b><small>' + (unavailable ? "Geen lampen gevonden" : group.lightIds.length + " lamp(en)") + '</small></span></label>';
+    return '<div class="hue-group-card' + (unavailable ? ' is-disabled' : '') + '">' +
+      '<label class="hue-room-option"><input type="checkbox" data-hue-group-key="' + escapeHtml(key) + '"' + checked +
+      (unavailable ? " disabled" : "") + '><span><b>' + escapeHtml(label) + '</b><small>' +
+      (unavailable ? "Geen lampen gevonden" : group.lightIds.length + " apparaat/apparaten") + '</small></span></label>' +
+      (unavailable ? "" : '<button type="button" class="hue-group-expand" data-hue-group-expand="' + escapeHtml(key) +
+      '" aria-expanded="false">Bekijk apparaten ▾</button><div class="hue-group-members" data-hue-group-members="' + escapeHtml(key) + '" hidden></div>') +
+      '</div>';
   }).join("");
   picker.querySelectorAll("[data-hue-group-key]").forEach(input => input.addEventListener("change", () => {
     const keys = new Set(state.selectedHueGroupKeys);
     if (input.checked) keys.add(input.dataset.hueGroupKey); else keys.delete(input.dataset.hueGroupKey);
     saveHueGroupSelections(keys);
     toast(keys.size + " Hue-kamer(s)/zone(s) geselecteerd.");
+  }));
+  picker.querySelectorAll("[data-hue-group-expand]").forEach(button => button.addEventListener("click", () => {
+    const key = button.dataset.hueGroupExpand;
+    const group = state.hueGroups.find(item => item.kind + ":" + item.id === key);
+    const container = picker.querySelector('[data-hue-group-members="' + key + '"]');
+    if (!group || !container) return;
+    const opening = container.hidden;
+    container.hidden = !opening;
+    button.setAttribute("aria-expanded", String(opening));
+    button.textContent = opening ? "Verberg apparaten ▴" : "Bekijk apparaten ▾";
+    if (opening) renderHueGroupLights(group, container);
   }));
   saveHueGroupSelections(state.selectedHueGroupKeys);
 }
@@ -171,6 +187,7 @@ async function loadHueDevices() {
   try {
     // This first request can perform the one-time Remote API Bridge registration.
     const lights = await fetchHueResource("light");
+    state.hueLights = lights;
     if (!lights.length) {
       list.innerHTML = '<div class="device-empty">De Bridge reageert, maar er zijn geen lampen gevonden.</div>';
     } else {
@@ -675,8 +692,27 @@ async function postHueCommand(pin, payload) {
 }
 function getTargetHueLightIds() {
   const selectedGroups = state.hueGroups.filter(group => state.selectedHueGroupKeys.has(group.kind + ":" + group.id));
-  const groupIds = selectedGroups.flatMap(group => group.lightIds || []);
+  const groupIds = selectedGroups.flatMap(group => group.lightIds || []).filter(id => !state.excludedHueLights.has(id));
   return [...new Set(groupIds.length ? groupIds : [...state.selectedHueLights])];
+}
+function renderHueGroupLights(group, container) {
+  const members = (group.lightIds || []).map(id => state.hueLights.find(light => light.id === id)).filter(Boolean);
+  if (!members.length) { container.innerHTML = '<div class="device-empty">Geen apparaten in deze kamer of zone gevonden.</div>'; return; }
+  container.innerHTML = members.map(light => {
+    const excluded = state.excludedHueLights.has(light.id);
+    const status = light.on === null ? "Status onbekend" : (light.on ? "Aan" : "Uit");
+    const brightness = light.brightness == null ? "" : " · " + Math.round(light.brightness) + "%";
+    return '<label class="hue-group-device' + (excluded ? ' is-excluded' : '') + '"><input type="checkbox" data-hue-member-id="' +
+      escapeHtml(light.id) + '"' + (excluded ? "" : " checked") + '><span class="device-bulb">●</span><span><b>' +
+      escapeHtml(light.name) + '</b><small>' + status + brightness + (excluded ? " · Niet meenemen" : " · Meedoen") + '</small></span></label>';
+  }).join("");
+  container.querySelectorAll("[data-hue-member-id]").forEach(input => input.addEventListener("change", () => {
+    const id = input.dataset.hueMemberId;
+    if (input.checked) state.excludedHueLights.delete(id); else state.excludedHueLights.add(id);
+    localStorage.setItem("fh_hue_excluded_lights", JSON.stringify([...state.excludedHueLights]));
+    renderHueGroupLights(group, container);
+    toast(input.checked ? "Lamp doet weer mee." : "Lamp wordt overgeslagen.");
+  }));
 }
 async function captureHueOriginalStates(ids, pin) {
   const snapshot = JSON.parse(localStorage.getItem("fh_hue_original_light_states") || "{}");
