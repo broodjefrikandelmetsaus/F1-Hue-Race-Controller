@@ -100,11 +100,11 @@ async function loadHueDevices() {
     });
     const result = await response.json();
     if (!response.ok) {
-      if (result.code === "bridge_user_missing") {
-        throw new Error("De Hue-accountkoppeling is actief, maar de Bridge-identificatie ontbreekt nog in de OAuth-gegevens. We moeten de Remote API-gegevens controleren.");
-      }
       if (result.code === "reauthorize") throw new Error("De Hue-toestemming moet opnieuw worden bevestigd. Koppel je account opnieuw.");
       if (result.code === "refresh_failed") throw new Error("De beveiligde Hue-toegang kon niet worden vernieuwd. Probeer later opnieuw.");
+      if (result.code === "remote_linkbutton_failed") throw new Error("Philips Hue kon de Bridge-autorisatie op afstand niet openen (HTTP " + result.status + "). Je account blijft gekoppeld; er zijn geen lampen aangestuurd.");
+      if (result.code === "bridge_registration_failed" || result.code === "bridge_registration_rejected" || result.code === "bridge_linkbutton_not_ready") throw new Error("Philips Hue heeft de Bridge-registratie nog niet afgerond. Je account blijft gekoppeld; probeer het straks opnieuw. Er zijn geen lampen aangestuurd.");
+      if (result.code === "remote_api_error") throw new Error("De Bridge-registratie is gedaan, maar Philips Hue gaf geen lampgegevens terug (HTTP " + result.status + ").");
       throw new Error(result.error || "De Hue-lampen konden niet worden opgehaald.");
     }
     const lights = Array.isArray(result.data) ? result.data : [];
@@ -121,7 +121,7 @@ async function loadHueDevices() {
         }).join("");
     }
     button.textContent = "Lampgegevens vernieuwen";
-    toast(lights.length + " Hue-lamp(en) gevonden.");
+    toast((result.registeredNow ? "Hue Bridge geregistreerd · " : "") + lights.length + " Hue-lamp(en) gevonden.");
   } catch (error) {
     list.innerHTML = '<div class="device-error">' + escapeHtml(error.message || "Hue Bridge niet bereikbaar.") + '</div>';
     button.textContent = "Opnieuw proberen";
