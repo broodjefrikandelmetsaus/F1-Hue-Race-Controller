@@ -28,6 +28,8 @@ const state = {
   },
   winnerEffectMode: localStorage.getItem("fh_winner_effect_mode") || "team",
   winnerTestSelection: "",
+  safetyCarLeftLightId: localStorage.getItem("fh_sc_left") || "",
+  safetyCarRightLightId: localStorage.getItem("fh_sc_right") || "",
   playing: false, anchor: 0, pausedAt: 0, current: 0, fired: new Set(), timer: null, toastTimer: null
 };
 const EVENT_META = {
@@ -183,6 +185,7 @@ async function loadHueDevices() {
     // This first request can perform the one-time Remote API Bridge registration.
     const lights = await fetchHueResource("light");
     state.hueLights = lights;
+    renderSafetyCarPicker();
     if (!lights.length) {
       list.innerHTML = '<div class="device-empty">De Bridge reageert, maar er zijn geen lampen gevonden.</div>';
     } else {
@@ -755,6 +758,11 @@ function seek(seconds){
 }
 function triggerEvent(event){
   if(event.type==="FLAG_CHEQUERED") showWinnerPreview(event);
+  else if(event.type==="SAFETY_CAR"){
+    $("previewName").textContent="SAFETY CAR · ZWAAILICHT";
+    $("previewCaption").textContent="Links twee snelle flitsen, daarna rechts twee snelle flitsen.";
+    state.hueEffectPromise=sendSafetyCarBeacon(true);
+  }
   else {
     const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_GREEN_YELLOW"?"GREEN_YELLOW":event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":event.type==="VSC_END"||event.type==="SAFETY_CAR_END"?"GREEN":null;
     if(previewType && state.effects[previewType]?.enabled) showPreview(previewType,event.label+" · "+formatClock(event.seconds),false,false,true);
@@ -915,6 +923,47 @@ function getTargetHueLightIds() {
   const selectedGroups = state.hueGroups.filter(group => state.selectedHueGroupKeys.has(group.kind + ":" + group.id));
   const groupIds = selectedGroups.flatMap(group => group.lightIds || []).filter(id => !state.excludedHueLights.has(id));
   return [...new Set(selectedGroups.length ? groupIds : [...state.selectedHueLights])];
+}
+function renderSafetyCarPicker(){
+  const root=$("safetyCarLightPicker");
+  if(!root)return;
+  if(!state.hueLights.length){root.innerHTML='<div class="device-empty">Laad eerst je Hue-lampen.</div>';return;}
+  const options='<option value="">Kies een lamp…</option>'+state.hueLights.map(light=>'<option value="'+escapeHtml(light.id)+'">'+escapeHtml(light.name)+'</option>').join("");
+  root.innerHTML='<label class="hue-group-device"><span><b>Links (tv-lamp)</b></span><select id="safetyCarLeftSelect">'+options+'</select></label>'+
+    '<label class="hue-group-device"><span><b>Rechts (lamp naast tv)</b></span><select id="safetyCarRightSelect">'+options+'</select></label>'+
+    '<small>Deze twee lampen doen het Safety Car-zwaailicht. Andere geselecteerde lampen blijven op hun eigen stand.</small>';
+  $("safetyCarLeftSelect").value=state.safetyCarLeftLightId;
+  $("safetyCarRightSelect").value=state.safetyCarRightLightId;
+  $("safetyCarLeftSelect").addEventListener("change",e=>{state.safetyCarLeftLightId=e.target.value;localStorage.setItem("fh_sc_left",e.target.value);});
+  $("safetyCarRightSelect").addEventListener("change",e=>{state.safetyCarRightLightId=e.target.value;localStorage.setItem("fh_sc_right",e.target.value);});
+}
+async function sendSafetyCarBeacon(returnToStandby=true){
+  const left=state.safetyCarLeftLightId,right=state.safetyCarRightLightId;
+  if(!left||!right||left===right){toast("Kies bij Hue-instellingen twee verschillende lampen voor het Safety Car-zwaailicht.");return false;}
+  const token=++state.hueEffectToken,pin=await getHuePin();
+  if(!pin)return false;
+  try{
+    await captureHueOriginalStates([left,right],pin);
+    const flash=async id=>{
+      if(token!==state.hueEffectToken)return false;
+      await postHueCommand(pin,{lightIds:[id],color:hexToHueXY("#FF9D00"),on:true,brightness:100});
+      await wait(110);
+      if(token!==state.hueEffectToken)return false;
+      await postHueCommand(pin,{lightIds:[id],on:false});
+      await wait(90);
+      return token===state.hueEffectToken;
+    };
+    for(let cycle=0;cycle<3;cycle++){
+      for(const id of [left,left,right,right])if(!await flash(id))return false;
+    }
+    if(returnToStandby&&state.standby){
+      const ids=getTargetHueLightIds();
+      if(ids.length)await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#00008b","#e10600","#00008b","#e10600"][index%5])})),on:true,brightness:65});
+      $("playerMode").textContent=state.playing?"SYNCHRONISEERT":"STAND-BY";
+    }
+    toast("Safety Car-zwaailicht afgespeeld · terug naar stand-by.");
+    return true;
+  }catch(error){toast(error.message||"Safety Car-zwaailicht mislukt.");return false;}
 }
 function renderHueGroupLights(group, container) {
   const members = (group.lightIds || []).map(id => state.hueLights.find(light => light.id === id)).filter(Boolean);
