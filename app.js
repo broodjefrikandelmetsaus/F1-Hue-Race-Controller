@@ -293,6 +293,56 @@ function driverName(number) {
   return d?.full_name || d?.broadcast_name || ("Coureur #" + number);
 }
 function driverTeam(number) { return state.drivers.get(Number(number))?.team_name || ""; }
+const COUNTRY_NAMES = {
+  AUS:"Australië", AUT:"Oostenrijk", BEL:"België", BRA:"Brazilië", CAN:"Canada", CHN:"China",
+  DEN:"Denemarken", ESP:"Spanje", FIN:"Finland", FRA:"Frankrijk", GBR:"Verenigd Koninkrijk",
+  GER:"Duitsland", ITA:"Italië", JPN:"Japan", MEX:"Mexico", MON:"Monaco", NED:"Nederland",
+  NZL:"Nieuw-Zeeland", POL:"Polen", POR:"Portugal", SUI:"Zwitserland", THA:"Thailand",
+  UAE:"Verenigde Arabische Emiraten", USA:"Verenigde Staten", ARG:"Argentinië", KOR:"Zuid-Korea",
+  RUS:"Rusland", SWE:"Zweden", NOR:"Noorwegen", IRL:"Ierland"
+};
+const COUNTRY_PALETTES = {
+  AUS:["#00843D","#FFCD00"], AUT:["#ED2939","#FFFFFF"], BEL:["#111111","#FAE042","#ED2939"],
+  BRA:["#009739","#FFDF00","#002776"], CAN:["#FF0000","#FFFFFF"], CHN:["#DE2910","#FFDE00"],
+  DEN:["#C60C30","#FFFFFF"], ESP:["#AA151B","#F1BF00"], FIN:["#FFFFFF","#003580"],
+  FRA:["#0055A4","#FFFFFF","#EF4135"], GBR:["#012169","#FFFFFF","#C8102E"],
+  GER:["#111111","#DD0000","#FFCE00"], ITA:["#009246","#FFFFFF","#CE2B37"],
+  JPN:["#FFFFFF","#BC002D"], MEX:["#006847","#FFFFFF","#CE1126"], MON:["#CE1126","#FFFFFF"],
+  NED:["#AE1C28","#FFFFFF","#21468B"], NZL:["#00247D","#FFFFFF","#CC142B"],
+  POL:["#FFFFFF","#DC143C"], POR:["#006600","#FF0000"], SUI:["#FF0000","#FFFFFF"],
+  THA:["#A51931","#FFFFFF","#2D2A4A"], UAE:["#00732F","#FFFFFF","#FF0000","#000000"],
+  USA:["#3C3B6E","#FFFFFF","#B22234"], ARG:["#74ACDF","#FFFFFF","#74ACDF"],
+  KOR:["#FFFFFF","#CD2E3A","#0047A0"], SWE:["#006AA7","#FECC00"], NOR:["#BA0C2F","#FFFFFF","#00205B"]
+};
+function renderWinnerOptions(){
+  const typeSelect=$("winnerSelectionType"), optionSelect=$("winnerSelection");
+  if(!typeSelect||!optionSelect)return;
+  const type=typeSelect.value||state.winnerSelectionType||"team";
+  const drivers=[...state.drivers.values()];
+  const choices=new Map();
+  drivers.forEach(driver=>{
+    const key=type==="team"?(driver.team_name||""):(driver.country_code||"").toUpperCase();
+    if(!key)return;
+    if(!choices.has(key))choices.set(key,type==="team"?key:(COUNTRY_NAMES[key]||key));
+  });
+  const sorted=[...choices.entries()].sort((a,b)=>a[1].localeCompare(b[1],"nl"));
+  const previous=state.winnerSelection;
+  optionSelect.innerHTML=sorted.length
+    ? sorted.map(([value,label])=>'<option value="'+escapeHtml(value)+'">'+escapeHtml(label)+'</option>').join("")
+    : '<option value="">Geen deelnemers beschikbaar</option>';
+  if(sorted.some(([value])=>value===previous))optionSelect.value=previous;
+  else if(sorted.length){optionSelect.value=sorted[0][0];state.winnerSelection=sorted[0][0];}
+  else state.winnerSelection="";
+  localStorage.setItem("fh_winner_selection",state.winnerSelection);
+}
+function winnerPalette(){
+  const type=$("winnerSelectionType")?.value||state.winnerSelectionType||"team";
+  const selected=$("winnerSelection")?.value||state.winnerSelection;
+  if(type==="country")return COUNTRY_PALETTES[selected]||["#E10600","#FFFFFF","#00008B"];
+  const driver=[...state.drivers.values()].find(d=>d.team_name===selected&&d.team_colour);
+  const color=driver?.team_colour?"#"+String(driver.team_colour).replace("#",""):"#E10600";
+  return [color];
+}
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
@@ -486,6 +536,7 @@ async function loadRaceEvents() {
       setStatus("Racegegevens ophalen… "+(i+1)+"/"+endpoints.length,true);
     }
     (loaded.drivers||[]).forEach(d=>state.drivers.set(Number(d.driver_number),d));
+    renderWinnerOptions();
     const events=[], start=state.session.date_start;
     (loaded.race_control||[]).forEach(item=>addEvent(events,item,raceControlType(item),start,{detail:item.message||item.flag||"",source:"Race Control"}));
     const laps=loaded.laps||[];
@@ -593,24 +644,20 @@ function triggerEvent(event){
 }
 function showWinnerPreview(event){
   const winner=state.results.find(result=>Number(result.position)===1)||state.results[0];
-  const driver=winner?state.drivers.get(Number(winner.driver_number)):null;
   const name=winner?driverName(winner.driver_number):"Winnaar";
-  const team=winner?driverTeam(winner.driver_number):"";
-  let color=state.winnerCountryColor;
-  if(state.winnerColorMode==="team"){
-    const providerColor=driver?.team_colour ? "#"+String(driver.team_colour).replace("#","") : null;
-    color=state.winnerTeamCustom?state.winnerTeamColor:(providerColor||state.winnerTeamColor);
-  }
+  const type=$("winnerSelectionType")?.value||"team";
+  const selected=$("winnerSelection")?.value||"";
+  const palette=winnerPalette();
   $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
-    el.style.background=color;
+    el.style.background=palette[index%palette.length];
     el.style.animation="none";
     void el.offsetWidth;
     el.style.animation="lightFlash .42s ease-in-out 3";
     el.style.animationDelay=(index*35)+"ms";
   });
   $("previewName").textContent="WINNAAR · "+name;
-  $("previewCaption").textContent=(team?team+" · ":"")+(state.winnerColorMode==="team"?"Teamkleur":"Eigen landkleur")+" · Winnaars-preview op alle geselecteerde lampen.";
-  if (state.playing) state.hueEffectPromise = sendHueColors([color],"pulse",true);
+  $("previewCaption").textContent=(type==="team"?"Team: ":"Land: ")+(selected||"niet geselecteerd")+" · Automatische team- of vlagkleuren.";
+  if(state.playing)state.hueEffectPromise=sendHueColors(palette,"pulse",true);
 }
 function renderEffectSettings(){
   const items=[
@@ -865,13 +912,18 @@ document.querySelectorAll("[data-offset]").forEach(b=>b.addEventListener("click"
 $("applyStandbyButton")?.addEventListener("click",()=>showStandbyPreview(true));
 $("standbyToggle").checked=state.standby;
 $("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));state.standby?showStandbyPreview(true):restoreHueOriginalStates();});
-$("winnerTeamColor").value=state.winnerTeamColor;
-$("winnerCountryColor").value=state.winnerCountryColor;
-$("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamColor=e.target.value;localStorage.setItem("fh_winner_team",e.target.value);});
-$("winnerCountryColor").addEventListener("input",e=>{state.winnerCountryColor=e.target.value;localStorage.setItem("fh_winner_country",e.target.value);});
-$("winnerColorMode").value=state.winnerColorMode;
-$("winnerColorMode").addEventListener("change",e=>{state.winnerColorMode=e.target.value;localStorage.setItem("fh_winner_mode",e.target.value);});
-$("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamCustom=true;});
+$("winnerSelectionType").value=state.winnerSelectionType;
+$("winnerSelectionType").addEventListener("change",e=>{
+  state.winnerSelectionType=e.target.value;
+  state.winnerSelection="";
+  localStorage.setItem("fh_winner_selection_type",state.winnerSelectionType);
+  renderWinnerOptions();
+});
+$("winnerSelection").addEventListener("change",e=>{
+  state.winnerSelection=e.target.value;
+  localStorage.setItem("fh_winner_selection",state.winnerSelection);
+});
+renderWinnerOptions();
 renderEffectSettings();
 if(state.standby)showStandbyPreview();
 loadHueConnectionStatus();
