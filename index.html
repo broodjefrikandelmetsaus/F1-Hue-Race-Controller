@@ -63,7 +63,7 @@
           <section class="stats-grid" aria-label="Race-statistieken">
             <div class="stat-card"><span class="stat-label">EVENTS GELADEN</span><strong id="statEvents">—</strong><small>in deze sessie</small></div>
             <div class="stat-card"><span class="stat-label">VLAGSIGNALEN</span><strong id="statFlags">—</strong><small>race control</small></div>
-            <div class="stat-card"><span class="stat-label">PITSTOPS</span><strong id="statPits">—</strong><small>gedetecteerd</small></div>
+            
             
           </section>
 
@@ -94,7 +94,7 @@
           <section class="panel events-panel">
             <div class="panel-heading">
               <div><div class="section-kicker">03 / RACE CONTROL</div><h2>Gebeurtenissen</h2></div>
-              <div class="event-filter"><select id="eventFilter" aria-label="Filter events"><option value="all">Alle events</option><option value="flags">Vlaggen & race control</option><option value="pit">Pitstops</option><option value="other">Overige</option></select></div>
+              <div class="event-filter"><select id="eventFilter" aria-label="Filter events"><option value="all">Alle events</option><option value="flags">Vlaggen & race control</option><option value="other">Overige</option></select></div>
             </div>
             <div id="eventsList" class="events-list">
               <div class="empty-state"><span class="empty-icon">⌁</span><strong>De tijdlijn is nog leeg</strong><p>Kies een Grand Prix en laad de race-events.</p></div>
@@ -143,10 +143,9 @@
             <div class="panel-heading"><div><div class="section-kicker">06 / EFFECTEN</div><h2>Race-signalen</h2></div><span class="tiny-tag">VOORINSTELLINGEN</span></div>
             <div class="effect-list" id="effectList"></div>
             <div class="custom-winner-colors">
-              <div class="custom-color-heading">KLEUREN WINNAAR</div>
-              <label>Teamkleur <input id="winnerTeamColor" type="color" value="#e52e42"></label>
-              <label>Landkleur <input id="winnerCountryColor" type="color" value="#ffffff"></label>
-              <label>Winnaareffect <select id="winnerColorMode"><option value="team">Teamkleur</option><option value="country">Landkleur (eigen kleur)</option></select></label>
+              <div class="custom-color-heading">WINNAARSELECTIE</div>
+              <label>Gebaseerd op <select id="winnerSelectionType"><option value="team">Team</option><option value="country">Land</option></select></label>
+              <label>Deelnemer <select id="winnerSelection"><option value="">Laad eerst een race</option></select></label>
             </div>
             <div class="standby-row"><div><b>Stand-by modus</b><small>Red Bull-kleuren als er geen event is</small></div><label class="switch"><input type="checkbox" id="standbyToggle" checked><span></span></label></div>
             <button class="button button-secondary full-width" id="applyStandbyButton" type="button">Stand-bykleuren toepassen</button>
