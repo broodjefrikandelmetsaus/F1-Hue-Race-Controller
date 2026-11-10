@@ -76,3 +76,19 @@ body.light .hue-room-picker p{color:#66778e}
 
 /* Expandable Hue room/zone membership */
 .hue-group-card{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:8px;min-width:0}.hue-group-card .hue-room-option{border:0;background:transparent;padding:5px 4px}.hue-group-expand{margin:4px 4px 2px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--cyan);font:inherit;font-size:10px;cursor:pointer}.hue-group-members{display:grid;gap:6px;margin:8px 2px 2px;padding-top:8px;border-top:1px solid var(--line)}.hue-group-members[hidden]{display:none}.hue-group-device{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,.035);cursor:pointer}.hue-group-device input{accent-color:var(--orange);width:16px;height:16px;flex:0 0 auto}.hue-group-device>span:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}.hue-group-device b{font-size:11px}.hue-group-device small{font-size:9px;color:var(--muted)}.hue-group-device.is-excluded{opacity:.55}
+ 
+/* Automatic winner mode + separate manual colour test */
+.winner-effect-settings{border-top:1px solid #ffffff12;margin-top:14px;padding-top:13px;display:grid;gap:10px}
+.winner-effect-copy{font-size:10px;line-height:1.55;color:#93a3b9;margin:0}
+.winner-mode-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.winner-mode-button{border:1px solid #34445e;border-radius:9px;background:#111c2d;color:#b8c6d8;padding:10px 8px;font-size:10px;font-weight:800;cursor:pointer}
+.winner-mode-button.active{border-color:var(--orange);background:#ff56381c;color:#fff;box-shadow:inset 0 0 0 1px #ff563855}
+.winner-mode-note{font-size:9px;line-height:1.5;color:#7f91aa}
+.winner-test-controls{display:grid;gap:7px;padding-top:10px;border-top:1px solid #ffffff10}
+.winner-test-controls label{font-size:9px;color:#aab8ca;font-weight:700}
+.winner-test-controls select{width:100%;background:#0a1322;border:1px solid #30425e;border-radius:8px;color:#eaf0f8;font-size:10px;padding:10px}
+body.light .winner-mode-button{background:#f3f6fa;color:#27364b;border-color:#d1dce8}
+body.light .winner-mode-button.active{background:#fff1eb;color:#a53b24;border-color:#ec8d70}
+body.light .winner-effect-copy,body.light .winner-mode-note{color:#66778e}
+body.light .winner-test-controls label{color:#53647a}
+body.light .winner-test-controls select{background:#fff;color:#18253a;border-color:#d1dce8}
