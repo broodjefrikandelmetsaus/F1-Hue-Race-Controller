@@ -626,7 +626,7 @@ function showWinnerPreview(event){
   });
   $("previewName").textContent="WINNAAR · "+name;
   $("previewCaption").textContent=(team?team+" · ":"")+(state.winnerColorMode==="team"?"Teamkleur":"Eigen landkleur")+" · Winnaars-preview op alle geselecteerde lampen.";
-  if (state.playing) state.hueEffectPromise = sendHueColors([color]);
+  if (state.playing) state.hueEffectPromise = sendHueColors([color],"pulse",true);
 }
 function renderEffectSettings(){
   const items=[
@@ -784,7 +784,7 @@ async function restoreHueOriginalStates() {
     state.hueRestoring = false;
   }
 }
-async function sendHueColors(colors, mode="pulse"){
+async function sendHueColors(colors, mode="pulse", returnToStandby=false){
   if (state.hueRestoring) return;
   const effectToken = ++state.hueEffectToken;
   const ids = getTargetHueLightIds();
@@ -820,7 +820,7 @@ async function sendHueColors(colors, mode="pulse"){
     if (effectToken !== state.hueEffectToken) return;
     await sendAll(colors[(pulses-1)%colors.length],65,true);
     if (effectToken !== state.hueEffectToken) return;
-    if (state.standby) {
+    if (returnToStandby && state.standby) {
       await postHueCommand(pin,{
         lightIds:ids,
         lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#001f5b","#e10600","#001f5b","#e10600"][index%5])})),
@@ -846,7 +846,7 @@ function showPreview(type,caption,force=false,physical=false){
   });
   $("previewName").textContent=type.replaceAll("_"," ");
   $("previewCaption").textContent=(caption?caption+" · ":"")+"Preview op scherm en geselecteerde Hue-lampen.";
-  if(physical || state.playing) state.hueEffectPromise = sendHueColors(palette);
+  if(physical || state.playing) state.hueEffectPromise = sendHueColors(palette,"pulse",state.playing);
 }
 function showStandbyPreview(physical=false){
   const colors=["#e10600","#001f5b","#e10600","#001f5b","#e10600"];
