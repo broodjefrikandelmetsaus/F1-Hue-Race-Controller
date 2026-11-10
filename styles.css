@@ -99,3 +99,9 @@ body.light .winner-test-controls select{background:#fff;color:#18253a;border-col
 .safety-car-picker>p,.safety-car-picker small{display:block;color:var(--muted);font-size:.8rem;line-height:1.45;margin:7px 0 10px}
 .safety-car-picker .hue-group-device{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:7px 0}
 .safety-car-picker select{max-width:58%;min-width:0;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+
+
+/* Safety Car preview button + left-left-right-right light animation */
+.safety-car-preview-button{margin-top:12px;border-color:rgba(255,157,0,.45);color:#ffc078;background:rgba(255,157,0,.09)}
+.safety-car-preview-button:hover{border-color:#ff9d00;background:rgba(255,157,0,.16)}
+@keyframes safetyCarPreview{0%,24%,100%{opacity:.18;filter:brightness(.6)}8%,16%{opacity:1;filter:brightness(2.1);box-shadow:0 0 18px #ff9d00}}
