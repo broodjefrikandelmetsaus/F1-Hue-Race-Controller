@@ -17,7 +17,7 @@ const state = {
   selectedHueGroupType: localStorage.getItem("fh_hue_group_type") || "",
   selectedHueGroupName: localStorage.getItem("fh_hue_group_name") || "",
   selectedHueGroupedLightId: localStorage.getItem("fh_hue_grouped_light_id") || "",
-  enabled: new Set(JSON.parse(localStorage.getItem("fh_enabled") || '["FLAG_GREEN","FLAG_YELLOW","FLAG_RED","FLAG_CHEQUERED","SAFETY_CAR","VSC","PIT_STOP","OVERTAKE","PENALTY","INCIDENT","FASTEST_LAP","TYRE_CHANGE"]')),
+  enabled: new Set(JSON.parse(localStorage.getItem("fh_enabled") || '["FLAG_GREEN","FLAG_YELLOW","FLAG_RED","FLAG_CHEQUERED","SAFETY_CAR","VSC","PIT_STOP","PENALTY","INCIDENT","FASTEST_LAP"]')),
   effects: JSON.parse(localStorage.getItem("fh_effects") || "null") || {
     GREEN:{enabled:true,colors:["#31dc86"]},
     YELLOW:{enabled:true,colors:["#ffd34e"]},
@@ -46,11 +46,9 @@ const EVENT_META = {
   VSC_END:{label:"VSC beëindigd",icon:"🟢",tone:"green",color:"#31dc86"},
   SAFETY_CAR_END:{label:"Safety Car naar binnen",icon:"🟢",tone:"green",color:"#31dc86"},
   PIT_STOP:{label:"Pitstop",icon:"🛠️",tone:"blue",color:"#4d87ff"},
-  OVERTAKE:{label:"Inhaalactie",icon:"↗",tone:"green",color:"#31dc86"},
   PENALTY:{label:"Straf / waarschuwing",icon:"⚖️",tone:"red",color:"#ff4d5d"},
   INCIDENT:{label:"Incident",icon:"⚠️",tone:"orange",color:"#ff8a55"},
   FASTEST_LAP:{label:"Snelste ronde",icon:"⏱️",tone:"blue",color:"#4d87ff"},
-  TYRE_CHANGE:{label:"Bandenset",icon:"🛞",tone:"blue",color:"#4d87ff"},
   SESSION:{label:"Race Control",icon:"🏁",tone:"orange",color:"#ff8a55"}
 };
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -341,9 +339,8 @@ function addEvent(list, raw, type, sessionStart, extra={}) {
 function isVisible(event) {
   const filter = $("eventFilter").value;
   if (filter === "flags") return event.type.startsWith("FLAG_") || ["SAFETY_CAR","VSC","SESSION"].includes(event.type);
-  if (filter === "pit") return event.type === "PIT_STOP" || event.type === "TYRE_CHANGE";
-  if (filter === "overtake") return event.type === "OVERTAKE";
-  if (filter === "other") return !event.type.startsWith("FLAG_") && !["SAFETY_CAR","VSC","SESSION","PIT_STOP","TYRE_CHANGE","OVERTAKE"].includes(event.type);
+  if (filter === "pit") return event.type === "PIT_STOP";
+  if (filter === "other") return !event.type.startsWith("FLAG_") && !["SAFETY_CAR","VSC","SESSION","PIT_STOP"].includes(event.type);
   return true;
 }
 function sessionStatus(session) {
@@ -482,7 +479,7 @@ async function loadRaceEvents() {
   setStatus("Racegegevens ophalen…",true);
   stopPlayer(true); state.events=[];state.drivers=new Map();state.results=[];state.resultsRevealed=false;
   const key=state.session.session_key;
-  const endpoints=["drivers","race_control","pit","overtakes","stints","session_result","laps"];
+  const endpoints=["drivers","race_control","pit","session_result","laps"];
   const loaded={};
   try {
     for(let i=0;i<endpoints.length;i++){
@@ -496,13 +493,7 @@ async function loadRaceEvents() {
     const events=[], start=state.session.date_start;
     (loaded.race_control||[]).forEach(item=>addEvent(events,item,raceControlType(item),start,{detail:item.message||item.flag||"",source:"Race Control"}));
     (loaded.pit||[]).forEach(item=>addEvent(events,item,"PIT_STOP",start,{detail:driverName(item.driver_number)+" · "+(item.stop_duration!=null?Number(item.stop_duration).toFixed(1)+"s stop":"pitstop"),source:"Pit"}));
-    (loaded.overtakes||[]).forEach(item=>addEvent(events,item,"OVERTAKE",start,{label:"Inhaalactie",detail:driverName(item.overtaking_driver_number)+" passeert "+driverName(item.overtaken_driver_number),source:"Overtakes"}));
     const laps=loaded.laps||[];
-    const lapStarts=new Map(laps.filter(l=>l.date_start!=null).map(l=>[String(l.driver_number)+"-"+String(l.lap_number),l]));
-    (loaded.stints||[]).forEach(item=>{
-      const firstLap=lapStarts.get(String(item.driver_number)+"-"+String(item.lap_start));
-      if(firstLap?.date_start)addEvent(events,{...item,date:firstLap.date_start,lap_number:item.lap_start},"TYRE_CHANGE",start,{detail:driverName(item.driver_number)+" · "+(item.compound||"bandenwissel")+" · stint "+(item.stint_number||""),source:"Stints"});
-    });
     const fastest=laps.filter(l=>Number.isFinite(Number(l.lap_duration)) && l.lap_duration>0).sort((a,b)=>a.lap_duration-b.lap_duration)[0];
     if(fastest)addEvent(events,{...fastest,date:fastest.date_start},"FASTEST_LAP",start,{detail:driverName(fastest.driver_number)+" · "+Number(fastest.lap_duration).toFixed(3)+"s · ronde "+fastest.lap_number,source:"Laps"});
     state.events=events.sort((a,b)=>a.seconds-b.seconds);
@@ -522,7 +513,6 @@ function renderStats(){
   $("statEvents").textContent=state.events.length;
   $("statFlags").textContent=state.events.filter(e=>e.type.startsWith("FLAG_")||["SAFETY_CAR","VSC"].includes(e.type)).length;
   $("statPits").textContent=state.events.filter(e=>e.type==="PIT_STOP").length;
-  $("statOvertakes").textContent=state.events.filter(e=>e.type==="OVERTAKE").length;
 }
 function renderEvents(){
   const list=$("eventsList"), items=state.events.filter(isVisible);
@@ -601,7 +591,7 @@ function seek(seconds){
 function triggerEvent(event){
   if(event.type==="FLAG_CHEQUERED" && state.effects.CHEQUERED?.enabled) showWinnerPreview(event);
   else {
-    const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_GREEN_YELLOW"?"GREEN_YELLOW":event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="OVERTAKE"?"GREEN":event.type==="PIT_STOP"||event.type==="TYRE_CHANGE"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":event.type==="VSC_END"||event.type==="SAFETY_CAR_END"?"GREEN":null;
+    const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_GREEN_YELLOW"?"GREEN_YELLOW":event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="PIT_STOP"?"BLUE":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":event.type==="VSC_END"||event.type==="SAFETY_CAR_END"?"GREEN":null;
     if(previewType && state.effects[previewType]?.enabled) showPreview(previewType,event.label+" · "+formatClock(event.seconds));
     else $("previewCaption").textContent=event.label+" · Effect uitgeschakeld of nog geen Hue-koppeling.";
   }
