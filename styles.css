@@ -70,3 +70,6 @@ body.light .hue-room-picker p{color:#66778e}
 .results-spoiler-note{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#9aa8bd)}
 .results-reveal-button{min-height:36px;padding:8px 13px;font-size:10px}
 .podium-list.results-blurred{filter:blur(8px);opacity:.65;user-select:none;pointer-events:none;transition:filter .2s ease,opacity .2s ease}
+
+/* Multi-room Hue target picker */
+.hue-room-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px;max-height:240px;overflow:auto}.hue-room-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);cursor:pointer;min-width:0}.hue-room-option input{accent-color:var(--orange);width:17px;height:17px;flex:0 0 auto}.hue-room-option span{display:flex;flex-direction:column;gap:2px;min-width:0}.hue-room-option b{font-size:12px}.hue-room-option small{font-size:10px;color:var(--muted)}.hue-room-option.is-disabled{opacity:.45;cursor:not-allowed}
