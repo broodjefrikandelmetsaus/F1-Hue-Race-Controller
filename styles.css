@@ -35,3 +35,13 @@ body.light .custom-winner-colors select{background:#f7f9fc;color:#18253a;border-
 @media(max-width:650px){.calendar-actions{display:flex;flex-direction:column}.calendar-buttons{width:100%}.calendar-buttons .button{flex:1}.calendar-meta{line-height:1.6}}
 
 .brand-logo{width:48px;height:48px;object-fit:contain;border-radius:12px;filter:drop-shadow(0 0 10px #1caeff40)}.brand{gap:12px}.brand strong{font-size:13px;letter-spacing:.17em}.brand small{letter-spacing:.17em}
+
+.hue-device-list{margin-top:12px;display:grid;gap:8px}
+.device-empty,.device-error,.device-summary{font-size:12px;line-height:1.5;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.045);color:var(--muted,#9aa8bd)}
+.device-error{color:#ff9a9a;background:rgba(255,70,80,.08)}
+.device-summary{color:#8de7b2}
+.hue-device-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:10px}
+.device-bulb{font-size:17px;color:#f5c84c;text-shadow:0 0 12px rgba(245,200,76,.5)}
+.device-info{display:grid;gap:3px;min-width:0}
+.device-info b{font-size:13px;overflow-wrap:anywhere}
+.device-info small{font-size:11px;color:var(--muted,#9aa8bd)}
