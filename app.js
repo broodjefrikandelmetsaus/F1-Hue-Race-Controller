@@ -1044,8 +1044,8 @@ function showStandbyPreview(physical=false){
   if(physical) state.hueEffectPromise = sendHueColors(["#e10600","#00008b"],"steady");
 }
 function updateOffset(value){
-  state.offset=Math.max(-10,Math.min(10,Number(value)||0));
-  $("offsetSlider").value=state.offset;$("offsetValue").textContent=(state.offset>0?"+":"")+state.offset+"s";
+  state.offset=Number(value)||0;
+  $("offsetValue").textContent=(state.offset>0?"+":"")+state.offset+"s";
   localStorage.setItem("fh_offset",String(state.offset));
 }
 $("hueLoadDevicesButton")?.addEventListener("click", loadHueDevices);
@@ -1061,7 +1061,6 @@ $("resetButton").addEventListener("click",()=>stopPlayer(true));
 $("lightsOutButton").addEventListener("click",()=>{seek(0);startPlayer();toast("Lights out-markering gezet. Dit is het startpunt van je replay.");});
 $("timelineSlider").addEventListener("input",e=>seek(Number(e.target.value)));
 $("eventFilter").addEventListener("change",renderEvents);
-$("offsetSlider").addEventListener("input",e=>updateOffset(e.target.value));
 document.querySelectorAll("[data-offset]").forEach(b=>b.addEventListener("click",()=>updateOffset(state.offset+Number(b.dataset.offset))));
 $("applyStandbyButton")?.addEventListener("click",()=>showStandbyPreview(true));
 $("standbyToggle").checked=state.standby;
