@@ -722,7 +722,9 @@ async function sendHueColors(colors, mode="pulse"){
       return postHueCommand(pin, payload);
     };
     if(mode==="steady"){
-      await sendAll(colors[0],82,true);
+      await Promise.all(ids.map((id,index)=>postHueCommand(pin,{
+        lightIds:[id], on:true, color:hexToHueXY(colors[index%colors.length]), brightness:82
+      })));
       toast("Stand-bykleuren toegepast op "+ids.length+" lamp(en).");
       return;
     }
