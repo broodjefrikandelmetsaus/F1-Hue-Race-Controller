@@ -418,7 +418,8 @@ function isBlackWinnerColor(color){
   const value=String(color||"").trim().toLowerCase();
   if(!/^#[0-9a-f]{6}$/.test(value))return false;
   const r=parseInt(value.slice(1,3),16),g=parseInt(value.slice(3,5),16),b=parseInt(value.slice(5,7),16);
-  return (0.2126*r+0.7152*g+0.0722*b)<45;
+  // Only neutral near-black shades count as off; dark blues/navy must stay visible.
+  return Math.max(r,g,b)<=32;
 }
 function previewWinnerColors(name,palette,caption){
   $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
