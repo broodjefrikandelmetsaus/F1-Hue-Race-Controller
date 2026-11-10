@@ -353,10 +353,14 @@ function renderWinnerOptions(){
   });
   const sorted=[...choices.entries()].sort((a,b)=>a[1].localeCompare(b[1],"nl"));
   const previous=state.winnerSelection;
+  const winner=state.results.find(result=>Number(result.position)===1)||state.results[0];
+  const winnerDriver=winner?state.drivers.get(Number(winner.driver_number)):null;
+  const winnerKey=type==="team"?(winnerDriver?.team_name||""):(winnerDriver?.country_code||"").toUpperCase();
   optionSelect.innerHTML=sorted.length
     ? sorted.map(([value,label])=>'<option value="'+escapeHtml(value)+'">'+escapeHtml(label)+'</option>').join("")
     : '<option value="">Geen deelnemers beschikbaar</option>';
-  if(sorted.some(([value])=>value===previous))optionSelect.value=previous;
+  if(winnerKey && sorted.some(([value])=>value===winnerKey)){optionSelect.value=winnerKey;state.winnerSelection=winnerKey;}
+  else if(sorted.some(([value])=>value===previous))optionSelect.value=previous;
   else if(sorted.length){optionSelect.value=sorted[0][0];state.winnerSelection=sorted[0][0];}
   else state.winnerSelection="";
   localStorage.setItem("fh_winner_selection",state.winnerSelection);
@@ -564,7 +568,6 @@ async function loadRaceEvents() {
       setStatus("Racegegevens ophalen… "+(i+1)+"/"+endpoints.length,true);
     }
     (loaded.drivers||[]).forEach(d=>state.drivers.set(Number(d.driver_number),d));
-    renderWinnerOptions();
     const events=[], start=state.session.date_start;
     (loaded.race_control||[]).forEach(item=>addEvent(events,item,raceControlType(item),start,{detail:item.message||item.flag||"",source:"Race Control"}));
     const laps=loaded.laps||[];
@@ -572,9 +575,16 @@ async function loadRaceEvents() {
     if(fastest)addEvent(events,{...fastest,date:fastest.date_start},"FASTEST_LAP",start,{detail:driverName(fastest.driver_number)+" · "+Number(fastest.lap_duration).toFixed(3)+"s · ronde "+fastest.lap_number,source:"Laps"});
     state.events=events.sort((a,b)=>a.seconds-b.seconds);
     state.results=(loaded.session_result||[]).sort((a,b)=>a.position-b.position);
+    renderWinnerOptions();
     const last=state.events.at(-1)?.seconds||0;
     const sessionEnd=new Date(state.session.date_end||start).getTime();
-    state.duration=Math.max(last+90,Number.isFinite(sessionEnd)?(sessionEnd-new Date(start).getTime())/1000:0,1800);
+    const sessionLength=(sessionEnd-new Date(start).getTime())/1000;
+    if(state.results.length && !state.events.some(event=>event.type==="FLAG_CHEQUERED")){
+      const finishAt=Math.max(last+1,Number.isFinite(sessionLength)?sessionLength-5:last+1);
+      addEvent(events,{date:new Date(new Date(start).getTime()+finishAt*1000).toISOString(),message:"WINNAAR BEKEND"}, "FLAG_CHEQUERED",start,{detail:"Officiële uitslag geladen",source:"Session Result"});
+      state.events=events.sort((a,b)=>a.seconds-b.seconds);
+    }
+    state.duration=Math.max(last+90,Number.isFinite(sessionLength)?sessionLength:0,1800);
     renderStats();renderEvents();renderResults();configurePlayer();
     const missing=endpoints.filter(e=>!loaded[e]?.length);
     setStatus(state.events.length+" events klaar"+(missing.length?" · niet beschikbaar: "+missing.join(", "):""));
@@ -662,7 +672,7 @@ function seek(seconds){
   if(wasPlaying)startPlayer();
 }
 function triggerEvent(event){
-  if(event.type==="FLAG_CHEQUERED" && state.effects.CHEQUERED?.enabled) showWinnerPreview(event);
+  if(event.type==="FLAG_CHEQUERED") showWinnerPreview(event);
   else {
     const previewType=event.type==="FLAG_GREEN"?"GREEN":event.type==="FLAG_YELLOW"||event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_RED"?"RED":event.type==="FLAG_CHEQUERED"?"CHEQUERED":event.type==="FLAG_GREEN_YELLOW"?"GREEN_YELLOW":event.type==="FLAG_DOUBLE_YELLOW"?"YELLOW":event.type==="FLAG_BLUE"?"BLUE":event.type==="SAFETY_CAR"||event.type==="VSC"?"YELLOW":event.type==="PENALTY"||event.type==="INCIDENT"?"RED":event.type==="VSC_END"||event.type==="SAFETY_CAR_END"?"GREEN":null;
     if(previewType && state.effects[previewType]?.enabled) showPreview(previewType,event.label+" · "+formatClock(event.seconds),false,false,true);
