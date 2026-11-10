@@ -975,7 +975,7 @@ async function sendSafetyCarBeacon(returnToStandby=true){
       for(const id of [left,left,right,right])if(!await flash(id))return false;
     }
     if(returnToStandby&&state.standby){
-      const ids=getTargetHueLightIds();
+      const ids=[...new Set([...getTargetHueLightIds(),left,right])];
       if(ids.length)await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#00008b","#e10600","#00008b","#e10600"][index%5])})),on:true,brightness:65});
       $("playerMode").textContent=state.playing?"SYNCHRONISEERT":"STAND-BY";
     }
