@@ -5,5 +5,8 @@
   "display": "standalone",
   "background_color": "#080d18",
   "theme_color": "#080d18",
-  "description": "Synchroniseer historische F1 race-events met Philips Hue."
+  "description": "Synchroniseer historische F1 race-events met Philips Hue.",
+  "icons": [
+    { "src": "./assets/f1-hue-logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
 }
