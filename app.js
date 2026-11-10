@@ -811,11 +811,11 @@ async function sendHueColors(colors, mode="pulse", returnToStandby=false){
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(flashColor,95,true);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(1);
+      await wait(0.5);
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(null,null,false);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(1);
+      await wait(0.5);
     }
     if (effectToken !== state.hueEffectToken) return;
     await sendAll(colors[(pulses-1)%colors.length],65,true);
