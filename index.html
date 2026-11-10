@@ -142,10 +142,19 @@
           <section class="panel effects-panel">
             <div class="panel-heading"><div><div class="section-kicker">06 / EFFECTEN</div><h2>Race-signalen</h2></div><span class="tiny-tag">VOORINSTELLINGEN</span></div>
             <div class="effect-list" id="effectList"></div>
-            <div class="custom-winner-colors">
-              <div class="custom-color-heading">WINNAARSELECTIE</div>
-              <label>Gebaseerd op <select id="winnerSelectionType"><option value="team">Team</option><option value="country">Land</option></select></label>
-              <label>Deelnemer <select id="winnerSelection"><option value="">Laad eerst een race</option></select></label>
+            <div class="winner-effect-settings">
+              <div class="custom-color-heading">AUTOMATISCHE WINNAARSVIERING</div>
+              <p class="winner-effect-copy">De app bepaalt zelf wie op P1 staat. De uitslag blijft verborgen totdat jij de top 3 onthult.</p>
+              <div class="winner-mode-buttons" role="group" aria-label="Kleurmodus voor de winnaar">
+                <button type="button" class="winner-mode-button" id="winnerTeamModeButton" aria-pressed="true">Teamkleuren</button>
+                <button type="button" class="winner-mode-button" id="winnerCountryModeButton" aria-pressed="false">Landkleuren</button>
+              </div>
+              <div class="winner-mode-note" id="winnerModeNote"></div>
+              <div class="winner-test-controls">
+                <label for="winnerTestSelection">Kleurenset handmatig testen</label>
+                <select id="winnerTestSelection"><option value="">Kies een kleurenset om te testen</option></select>
+                <button class="button button-secondary full-width" id="testWinnerEffectButton" type="button">Test winnaarseffect</button>
+              </div>
             </div>
             <div class="standby-row"><div><b>Stand-by modus</b><small>Red Bull-kleuren als er geen event is</small></div><label class="switch"><input type="checkbox" id="standbyToggle" checked><span></span></label></div>
             <button class="button button-secondary full-width" id="applyStandbyButton" type="button">Stand-bykleuren toepassen</button>
