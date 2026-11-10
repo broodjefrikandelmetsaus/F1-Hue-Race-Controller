@@ -55,6 +55,36 @@ async function api(path, params) {
     return await response.json();
   } finally { clearTimeout(timeout); }
 }
+
+async function loadHueConnectionStatus() {
+  const endpoint = "https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-connection-status";
+  const stateEl = $("hueConnectionState");
+  const titleEl = $("hueConnectionTitle");
+  const copyEl = $("hueConnectionCopy");
+  const buttonEl = $("hueConnectButton");
+  try {
+    const response = await fetch(endpoint, { headers: { Accept: "application/json" }, cache: "no-store" });
+    if (!response.ok) throw new Error("Hue-status niet bereikbaar");
+    const status = await response.json();
+    if (status.linked) {
+      if (stateEl) { stateEl.textContent = "ACCOUNT GEKOPPELD"; stateEl.classList.add("connected"); }
+      if (titleEl) titleEl.textContent = "Je Philips Hue-account is gekoppeld";
+      if (copyEl) copyEl.textContent = "De beveiligde Hue-autorisatie is gevonden. De daadwerkelijke Bridge- en lampbediening wordt in de volgende integratiestap aangesloten.";
+      if (buttonEl) { buttonEl.textContent = "Account gekoppeld · bediening volgt"; buttonEl.disabled = true; }
+    } else {
+      if (stateEl) stateEl.textContent = "NIET GEKOPPELD";
+      if (titleEl) titleEl.textContent = "Je Hue-account is nog niet gekoppeld";
+      if (copyEl) copyEl.textContent = "Koppel je Philips Hue-account om de beveiligde autorisatie op te slaan.";
+      if (buttonEl) { buttonEl.textContent = "Hue-account koppelen"; buttonEl.disabled = false; }
+    }
+  } catch (error) {
+    if (stateEl) stateEl.textContent = "STATUS ONBEKEND";
+    if (titleEl) titleEl.textContent = "Hue-verbindingsstatus niet beschikbaar";
+    if (copyEl) copyEl.textContent = "Controleer je internetverbinding en probeer de app opnieuw te openen.";
+    if (buttonEl) { buttonEl.textContent = "Status opnieuw proberen"; buttonEl.disabled = false; }
+  }
+}
+
 function setStatus(message, busy=false) {
   $("dataStatus").textContent = message;
   $("loadRaceButton").disabled = busy || !state.session || sessionStatus(state.session) !== "AFGELOPEN";
@@ -393,7 +423,7 @@ function showWinnerPreview(event){
     el.style.animationDelay=(index*35)+"ms";
   });
   $("previewName").textContent="WINNAAR · "+name;
-  $("previewCaption").textContent=(team?team+" · ":"")+(state.winnerColorMode==="team"?"Teamkleur":"Eigen landkleur")+" · Visuele preview — Hue Bridge nog niet gekoppeld.";
+  $("previewCaption").textContent=(team?team+" · ":"")+(state.winnerColorMode==="team"?"Teamkleur":"Eigen landkleur")+" · Visuele preview — fysieke Hue-bediening volgt na de Bridge-integratie.";
 }
 function renderEffectSettings(){
   const items=[
@@ -435,7 +465,7 @@ function showPreview(type,caption,force=false){
     el.style.animationDelay=(index*35)+"ms";
   });
   $("previewName").textContent=type.replaceAll("_"," ");
-  $("previewCaption").textContent=(caption?caption+" · ":"")+"Visuele preview — Hue Bridge nog niet gekoppeld.";
+  $("previewCaption").textContent=(caption?caption+" · ":"")+"Visuele preview — fysieke Hue-bediening volgt na de Bridge-integratie.";
 }
 function showStandbyPreview(){
   const colors=["#e52e42","#102b59","#e52e42","#102b59","#e52e42"];
@@ -444,7 +474,7 @@ function showStandbyPreview(){
     el.style.animation="none";
   });
   $("previewName").textContent="STANDBY · RED BULL";
-  $("previewCaption").textContent="Stand-by kleuren klaar · Hue Bridge nog niet gekoppeld.";
+  $("previewCaption").textContent="Stand-by kleuren klaar · fysieke Hue-bediening volgt na de Bridge-integratie.";
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
@@ -476,6 +506,7 @@ $("winnerColorMode").addEventListener("change",e=>{state.winnerColorMode=e.targe
 $("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamCustom=true;});
 renderEffectSettings();
 if(state.standby)showStandbyPreview();
+loadHueConnectionStatus();
 $("themeButton").addEventListener("click",()=>document.body.classList.toggle("light"));
 updateOffset(state.offset);
 loadYears();
