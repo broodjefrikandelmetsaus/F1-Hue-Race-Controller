@@ -224,20 +224,24 @@ async function loadHueDevices() {
     const zones = zonesResult.status === "fulfilled" ? zonesResult.value : [];
     const groupedLights = groupedResult.status === "fulfilled" ? groupedResult.value : [];
     const devices = devicesResult.status === "fulfilled" ? devicesResult.value : [];
+    // Hue API v2 links resources with rid/rtype (not id/type).
+    const linkId = item => item?.rid || item?.id || "";
+    const linkType = item => item?.rtype || item?.type || "";
     const deviceLights = new Map(devices.map(device => [
-      device.id, (device.services || []).filter(service => service.type === "light").map(service => service.id)
+      device.id, (device.services || []).filter(service => linkType(service) === "light").map(linkId).filter(Boolean)
     ]));
     const groupResources = [
       ...rooms.map(group => ({ ...group, kind: "room" })),
       ...zones.map(group => ({ ...group, kind: "zone" }))
     ];
     const groups = groupResources.map(group => {
-      const service = Array.isArray(group.services) ? group.services.find(item => item.type === "grouped_light") : null;
-      const ownerMatch = groupedLights.find(item => item.owner && item.owner.id === group.id &&
-        (!item.owner.type || item.owner.type === group.kind));
+      const service = Array.isArray(group.services) ? group.services.find(item => linkType(item) === "grouped_light") : null;
+      const ownerMatch = groupedLights.find(item => item.owner && linkId(item.owner) === group.id &&
+        (!linkType(item.owner) || linkType(item.owner) === group.kind));
       const lightIds = [...new Set((group.children || []).flatMap(child => {
-        if (child.type === "light") return [child.id];
-        if (child.type === "device") return deviceLights.get(child.id) || [];
+        const id = linkId(child), type = linkType(child);
+        if (type === "light") return id ? [id] : [];
+        if (type === "device") return deviceLights.get(id) || [];
         return [];
       }))];
       return {
@@ -782,11 +786,11 @@ async function sendHueColors(colors, mode="pulse"){
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(flashColor,95,true);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(250);
+      await wait(150);
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(null,null,false);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(250);
+      await wait(150);
     }
     if (effectToken !== state.hueEffectToken) return;
     await sendAll(colors[(pulses-1)%colors.length],65,true);
