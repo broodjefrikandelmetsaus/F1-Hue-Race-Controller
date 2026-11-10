@@ -661,7 +661,7 @@ async function sendHueColors(colors){
   const ids=[...state.selectedHueLights];
   if(!ids.length){toast("Selecteer eerst Hue-lampen.");return;}
   let pin=sessionStorage.getItem("fh_hue_pin");
-  if(!pin){pin=prompt("Voer je Hue-toegangscode in om de lampen echt aan te sturen:");if(!pin)return;if(!/^\\d{6}$/.test(pin)){toast("De toegangscode moet 6 cijfers hebben.");return;}sessionStorage.setItem("fh_hue_pin",pin);}
+  if(!pin){pin=prompt("Voer je Hue-toegangscode in om de lampen echt aan te sturen:");if(!pin)return;if(!/^\d{6}$/.test(pin)){toast("De toegangscode moet 6 cijfers hebben.");return;}sessionStorage.setItem("fh_hue_pin",pin);}
   const requests=ids.map((id,index)=>{
     const color=hexToHueXY(colors[index%colors.length]);
     return fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=light",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({pin,lightIds:[id],color,brightness:35})})
