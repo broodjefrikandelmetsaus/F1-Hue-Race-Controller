@@ -10,6 +10,7 @@ const state = {
   hueGroups: [],
   selectedHueLights: new Set(JSON.parse(localStorage.getItem("fh_hue_selected_lights") || "[]")),
   selectedHueGroupKeys: new Set(JSON.parse(localStorage.getItem("fh_hue_selected_groups") || "[]")),
+  hueEffectToken: 0, hueEffectPromise: null, hueRestoring: false,
   resultsRevealed: false,
   selectedHueGroupId: localStorage.getItem("fh_hue_group_id") || "",
   selectedHueGroupType: localStorage.getItem("fh_hue_group_type") || "",
@@ -687,21 +688,27 @@ async function captureHueOriginalStates(ids, pin) {
 async function restoreHueOriginalStates() {
   const snapshot = JSON.parse(localStorage.getItem("fh_hue_original_light_states") || "{}");
   const ids = Object.keys(snapshot);
-  if (!ids.length) return;
-  const pin = await getHuePin();
-  if (!pin) return;
+  if (!ids.length || state.hueRestoring) return;
+  state.hueRestoring = true;
+  state.hueEffectToken++;
   try {
-    for (const id of ids) {
-      const original = snapshot[id];
-      await postHueCommand(pin, {action:"restore", lightIds:[id], original});
-    }
+    if (state.hueEffectPromise) await state.hueEffectPromise;
+    const pin = await getHuePin();
+    if (!pin) return;
+    const results = await Promise.all(ids.map(id =>
+      postHueCommand(pin, {action:"restore", lightIds:[id], original:snapshot[id]})
+    ));
     localStorage.removeItem("fh_hue_original_light_states");
     toast("Alle lampen staan weer op hun oorspronkelijke instellingen.");
   } catch (error) {
     toast("Herstellen is niet helemaal gelukt: " + (error.message || "onbekende fout") + ". De opgeslagen standen zijn bewaard; probeer Stop opnieuw.");
+  } finally {
+    state.hueRestoring = false;
   }
 }
 async function sendHueColors(colors, mode="pulse"){
+  if (state.hueRestoring) return;
+  const effectToken = ++state.hueEffectToken;
   const ids = getTargetHueLightIds();
   if(!ids.length){toast("Selecteer eerst één of meer Hue-kamers of lampen.");return;}
   const pin = await getHuePin();
@@ -722,11 +729,16 @@ async function sendHueColors(colors, mode="pulse"){
     const pulses=colors.length>1?6:3;
     for(let pulse=0;pulse<pulses;pulse++){
       const flashColor = colors.length>1 ? colors[pulse%colors.length] : colors[0];
+      if (effectToken !== state.hueEffectToken) return;
       await sendAll(flashColor,95,true);
+      if (effectToken !== state.hueEffectToken) return;
       await wait(500);
+      if (effectToken !== state.hueEffectToken) return;
       await sendAll(null,null,false);
+      if (effectToken !== state.hueEffectToken) return;
       await wait(500);
     }
+    if (effectToken !== state.hueEffectToken) return;
     await sendAll(colors[(pulses-1)%colors.length],65,true);
     toast("Snelle wedstrijdflitsen uitgevoerd op "+ids.length+" lamp(en).");
   }catch(error){
@@ -746,7 +758,7 @@ function showPreview(type,caption,force=false,physical=false){
   });
   $("previewName").textContent=type.replaceAll("_"," ");
   $("previewCaption").textContent=(caption?caption+" · ":"")+"Preview op scherm en geselecteerde Hue-lampen.";
-  if(physical || state.playing) sendHueColors(palette);
+  if(physical || state.playing) state.hueEffectPromise = sendHueColors(palette);
 }
 function showStandbyPreview(physical=false){
   const colors=["#e10600","#001f5b","#e10600","#001f5b","#e10600"];
@@ -756,7 +768,7 @@ function showStandbyPreview(physical=false){
   });
   $("previewName").textContent="STANDBY · RED BULL";
   $("previewCaption").textContent="Red Bull-standbykleuren naar de geselecteerde Hue-lampen.";
-  if(physical) sendHueColors(colors,"steady");
+  if(physical) state.hueEffectPromise = sendHueColors(colors,"steady");
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
