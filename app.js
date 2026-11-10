@@ -71,6 +71,8 @@ async function loadHueConnectionStatus() {
       if (titleEl) titleEl.textContent = "Je Philips Hue-account is gekoppeld";
       if (copyEl) copyEl.textContent = "De beveiligde Hue-autorisatie is gevonden. De daadwerkelijke Bridge- en lampbediening wordt in de volgende integratiestap aangesloten.";
       if (buttonEl) { buttonEl.textContent = "Account gekoppeld · bediening volgt"; buttonEl.disabled = true; }
+      const deviceButton = $("hueLoadDevicesButton");
+      if (deviceButton) deviceButton.disabled = false;
     } else {
       if (stateEl) stateEl.textContent = "NIET GEKOPPELD";
       if (titleEl) titleEl.textContent = "Je Hue-account is nog niet gekoppeld";
@@ -82,6 +84,49 @@ async function loadHueConnectionStatus() {
     if (titleEl) titleEl.textContent = "Hue-verbindingsstatus niet beschikbaar";
     if (copyEl) copyEl.textContent = "Controleer je internetverbinding en probeer de app opnieuw te openen.";
     if (buttonEl) { buttonEl.textContent = "Status opnieuw proberen"; buttonEl.disabled = false; }
+  }
+}
+ 
+async function loadHueDevices() {
+  const button = $("hueLoadDevicesButton");
+  const list = $("hueDeviceList");
+  if (!button || !list) return;
+  button.disabled = true;
+  button.textContent = "Hue-lampen zoeken…";
+  list.innerHTML = '<div class="device-empty">Verbinding maken met de Hue Bridge…</div>';
+  try {
+    const response = await fetch("https://iimpesmlfjqerweuqmsj.supabase.co/functions/v1/hue-bridge-resources?resource=light", {
+      headers: { Accept: "application/json" }, cache: "no-store"
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      if (result.code === "bridge_user_missing") {
+        throw new Error("De Hue-accountkoppeling is actief, maar de Bridge-identificatie ontbreekt nog in de OAuth-gegevens. We moeten de Remote API-gegevens controleren.");
+      }
+      if (result.code === "reauthorize") throw new Error("De Hue-toestemming moet opnieuw worden bevestigd. Koppel je account opnieuw.");
+      if (result.code === "refresh_failed") throw new Error("De beveiligde Hue-toegang kon niet worden vernieuwd. Probeer later opnieuw.");
+      throw new Error(result.error || "De Hue-lampen konden niet worden opgehaald.");
+    }
+    const lights = Array.isArray(result.data) ? result.data : [];
+    if (!lights.length) {
+      list.innerHTML = '<div class="device-empty">De Bridge reageert, maar er zijn geen lampen gevonden.</div>';
+    } else {
+      list.innerHTML = '<div class="device-summary">' + lights.length + ' Hue-lamp(en) gevonden</div>' +
+        lights.map(light => {
+          const caps = light.color ? "Kleur" : (light.colorTemperature !== null ? "Wittemperatuur" : "Wit / dimbaar");
+          const status = light.on === null ? "Status onbekend" : (light.on ? "Aan" : "Uit");
+          const brightness = light.brightness === null ? "" : " · " + Math.round(light.brightness) + "%";
+          return '<div class="hue-device-row"><span class="device-bulb">●</span><span class="device-info"><b>' +
+            escapeHtml(light.name) + '</b><small>' + caps + ' · ' + status + brightness + '</small></span></div>';
+        }).join("");
+    }
+    button.textContent = "Lampgegevens vernieuwen";
+    toast(lights.length + " Hue-lamp(en) gevonden.");
+  } catch (error) {
+    list.innerHTML = '<div class="device-error">' + escapeHtml(error.message || "Hue Bridge niet bereikbaar.") + '</div>';
+    button.textContent = "Opnieuw proberen";
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -481,6 +526,7 @@ function updateOffset(value){
   $("offsetSlider").value=state.offset;$("offsetValue").textContent=(state.offset>0?"+":"")+state.offset+"s";
   localStorage.setItem("fh_offset",String(state.offset));
 }
+$("hueLoadDevicesButton")?.addEventListener("click", loadHueDevices);
 $("yearSelect").addEventListener("change",e=>loadMeetings(e.target.value));
 $("refreshCalendarButton").addEventListener("click",()=>refreshCalendar(false));
 $("meetingSelect").addEventListener("change",e=>loadSessions(e.target.value));
