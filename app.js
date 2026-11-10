@@ -578,7 +578,7 @@ function pausePlayer(){
 function stopPlayer(reset=false){
   state.playing=false;clearInterval(state.timer);state.timer=null;
   if(reset){state.current=0;state.pausedAt=0;state.fired.clear();$("playerMode").textContent="WACHT OP RACE";$("playButton").textContent="▶ Start synchronisatie";updateClock();}
-  restoreHueOriginalStates();
+  returnHueToStandby();
 }
 function tick(){
   state.current=currentElapsed();
@@ -589,7 +589,7 @@ function tick(){
     }
   });
   updateClock();
-  if(state.current>=state.duration){state.playing=false;clearInterval(state.timer);state.timer=null;$("playerMode").textContent="REPLAY VOLTOOID";$("playButton").textContent="▶ Verder";restoreHueOriginalStates();toast("De sessie is afgelopen. De oorspronkelijke lampstanden worden hersteld.");}
+  if(state.current>=state.duration){state.playing=false;clearInterval(state.timer);state.timer=null;$("playerMode").textContent="REPLAY VOLTOOID";$("playButton").textContent="▶ Verder";returnHueToStandby();toast("De sessie is afgelopen. De lampen gaan terug naar stand-by.");}
 }
 function seek(seconds){
   const wasPlaying=state.playing;if(wasPlaying)pausePlayer();
@@ -737,6 +737,22 @@ async function captureHueOriginalStates(ids, pin) {
     localStorage.setItem("fh_hue_original_light_states", JSON.stringify(snapshot));
   }
 }
+async function returnHueToStandby() {
+  if (state.standby) {
+    try {
+      const ids = getTargetHueLightIds();
+      if (!ids.length) return;
+      const pin = await getHuePin();
+      if (!pin) return;
+      await postHueCommand(pin, {lightIds:ids, on:true, color:hexToHueXY("#001f5b"), brightness:65});
+      $("playerMode").textContent = state.playing ? "SYNCHRONISEERT" : "STAND-BY";
+    } catch (error) {
+      toast("Stand-by herstellen lukte niet: " + (error.message || "onbekende fout"));
+    }
+    return;
+  }
+  await restoreHueOriginalStates();
+}
 async function restoreHueOriginalStates() {
   const snapshot = JSON.parse(localStorage.getItem("fh_hue_original_light_states") || "{}");
   const ids = Object.keys(snapshot);
@@ -774,10 +790,10 @@ async function sendHueColors(colors, mode="pulse"){
       return postHueCommand(pin, payload);
     };
     if(mode==="steady"){
-      await Promise.all(ids.map((id,index)=>postHueCommand(pin,{
-        lightIds:[id], on:true, color:hexToHueXY(colors[index%colors.length]), brightness:82
-      })));
-      toast("Stand-bykleuren toegepast op "+ids.length+" lamp(en).");
+      await postHueCommand(pin,{
+        lightIds:ids, on:true, color:hexToHueXY(colors[0]), brightness:82
+      });
+      toast("Stand-by in één gelijktijdig commando toegepast op "+ids.length+" lamp(en).");
       return;
     }
     const pulses=colors.length>1?6:3;
@@ -786,15 +802,20 @@ async function sendHueColors(colors, mode="pulse"){
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(flashColor,95,true);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(150);
+      await wait(100);
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(null,null,false);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(150);
+      await wait(100);
     }
     if (effectToken !== state.hueEffectToken) return;
     await sendAll(colors[(pulses-1)%colors.length],65,true);
-    toast("Snelle wedstrijdflitsen uitgevoerd op "+ids.length+" lamp(en).");
+    if (effectToken !== state.hueEffectToken) return;
+    if (state.standby) {
+      await sendAll("#001f5b",65,true);
+      $("playerMode").textContent = state.playing ? "SYNCHRONISEERT" : "STAND-BY";
+    }
+    toast("Gelijktijdige wedstrijdflitsen uitgevoerd op "+ids.length+" lamp(en); daarna terug naar stand-by.");
   }catch(error){
     toast(error.message||"Hue-aansturing mislukt.");
   }
@@ -822,7 +843,7 @@ function showStandbyPreview(physical=false){
   });
   $("previewName").textContent="STANDBY · RED BULL";
   $("previewCaption").textContent="Red Bull-standbykleuren naar de geselecteerde Hue-lampen.";
-  if(physical) state.hueEffectPromise = sendHueColors(colors,"steady");
+  if(physical) state.hueEffectPromise = sendHueColors(["#001f5b"],"steady");
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
@@ -846,7 +867,7 @@ $("offsetSlider").addEventListener("input",e=>updateOffset(e.target.value));
 document.querySelectorAll("[data-offset]").forEach(b=>b.addEventListener("click",()=>updateOffset(state.offset+Number(b.dataset.offset))));
 $("applyStandbyButton")?.addEventListener("click",()=>showStandbyPreview(true));
 $("standbyToggle").checked=state.standby;
-$("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));state.standby?showStandbyPreview(true):showPreview("BLUE","Stand-by staat uit",true,false);});
+$("standbyToggle").addEventListener("change",e=>{state.standby=e.target.checked;localStorage.setItem("fh_standby",String(state.standby));state.standby?showStandbyPreview(true):restoreHueOriginalStates();});
 $("winnerTeamColor").value=state.winnerTeamColor;
 $("winnerCountryColor").value=state.winnerCountryColor;
 $("winnerTeamColor").addEventListener("input",e=>{state.winnerTeamColor=e.target.value;localStorage.setItem("fh_winner_team",e.target.value);});
