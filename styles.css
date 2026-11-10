@@ -59,3 +59,14 @@ body.light .custom-winner-colors select{background:#f7f9fc;color:#18253a;border-
 body.light .hue-room-picker{background:#f4f9fc;border-color:#d5e5ee}
 body.light .hue-room-picker select{background:#fff;color:#18253a;border-color:#d1dce8}
 body.light .hue-room-picker p{color:#66778e}
+
+/* Selectable Hue lamps */
+.hue-device-row.hue-device-selectable{cursor:pointer;transition:border-color .16s ease,background .16s ease;user-select:none}
+.hue-device-row.hue-device-selectable:hover{border-color:rgba(71,216,232,.55);background:rgba(71,216,232,.06)}
+.hue-light-checkbox{width:18px;height:18px;flex:0 0 18px;accent-color:var(--cyan);cursor:pointer}
+.hue-device-selectable .device-info{flex:1}
+.results-spoiler-intro{font-size:10px;color:var(--muted,#9aa8bd);line-height:1.5;margin:8px 0 12px}
+.results-reveal-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
+.results-spoiler-note{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#9aa8bd)}
+.results-reveal-button{min-height:36px;padding:8px 13px;font-size:10px}
+.podium-list.results-blurred{filter:blur(8px);opacity:.65;user-select:none;pointer-events:none;transition:filter .2s ease,opacity .2s ease}
