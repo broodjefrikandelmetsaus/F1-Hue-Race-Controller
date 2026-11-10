@@ -118,6 +118,13 @@
             <div class="hue-device-list" id="hueDeviceList" aria-live="polite">
               <div class="device-empty">Na het laden verschijnen hier de lampen en hun mogelijkheden.</div>
             </div>
+            <div class="hue-room-picker">
+              <div class="room-picker-top"><strong>Kamer / groep kiezen</strong><span id="hueRoomCount">Nog niet geladen</span></div>
+              <select id="hueRoomSelect" disabled aria-label="Selecteer Hue-kamer of -groep">
+                <option value="">Laad eerst je Hue-kamers</option>
+              </select>
+              <p id="hueRoomCopy">Kies straks bijvoorbeeld TV om alleen die Hue-groep als doel in te stellen.</p>
+            </div>
             <div class="preview-label"><span>LICHTEFFECT-PREVIEW</span><span id="previewName">STANDBY · RED BULL</span></div>
             <div class="light-preview" id="lightPreview"><span></span><span></span><span></span><span></span><span></span></div>
             <div class="preview-caption" id="previewCaption">Visuele preview — er worden nog geen fysieke lampen aangestuurd.</div>
