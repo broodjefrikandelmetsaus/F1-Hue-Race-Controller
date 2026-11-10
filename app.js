@@ -423,6 +423,17 @@ function previewWinnerColors(name,palette,caption){
   });
   $("previewName").textContent=name;
   $("previewCaption").textContent=caption;
+  localStorage.setItem("fh_last_preview",JSON.stringify({name,palette,caption}));
+}
+function restoreLastPreview(){
+  try{
+    const saved=JSON.parse(localStorage.getItem("fh_last_preview")||"null");
+    if(saved?.name&&Array.isArray(saved.palette)&&saved.palette.length){
+      previewWinnerColors(saved.name,saved.palette,saved.caption||"Laatste verstuurde effect.");
+      return true;
+    }
+  }catch(_){}
+  return false;
 }
 function testWinnerEffect(){
   const selected=$("winnerTestSelection")?.value||"";
@@ -754,16 +765,26 @@ async function sendWinnerCelebration(colors,returnToStandby=true){
     for(let frame=0;frame<frames;frame++){
       if(effectToken!==state.hueEffectToken)return false;
       const shift=frame%ids.length;
-      const lightColors=ids.map((id,index)=>{
-        const colorIndex=((index-shift)%colors.length+colors.length)%colors.length;
-        return {id,color:hexToHueXY(colors[colorIndex])};
-      });
-      await postHueCommand(pin,{lightIds:ids,lightColors,on:true,brightness:95});
+      const frameColors=ids.map((id,index)=>({id,color:colors[((index-shift)%colors.length+colors.length)%colors.length]}));
+      const offIds=frameColors.filter(item=>/^#(?:000000|111111)$/i.test(item.color)).map(item=>item.id);
+      const litColors=frameColors.filter(item=>!/^#(?:000000|111111)$/i.test(item.color))
+        .map(item=>({id:item.id,color:hexToHueXY(item.color)}));
+      await Promise.all([
+        offIds.length?postHueCommand(pin,{lightIds:offIds,on:false}):Promise.resolve(),
+        litColors.length?postHueCommand(pin,{lightIds:litColors.map(item=>item.id),lightColors:litColors,on:true,brightness:95}):Promise.resolve()
+      ]);
       if(effectToken!==state.hueEffectToken)return false;
       await wait(180);
     }
     if(effectToken!==state.hueEffectToken)return false;
-    await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(colors[(index+frames)%colors.length])})),on:true,brightness:88});
+    const finalColors=ids.map((id,index)=>({id,color:colors[(index+frames)%colors.length]}));
+    const finalOffIds=finalColors.filter(item=>/^#(?:000000|111111)$/i.test(item.color)).map(item=>item.id);
+    const finalLitColors=finalColors.filter(item=>!/^#(?:000000|111111)$/i.test(item.color))
+      .map(item=>({id:item.id,color:hexToHueXY(item.color)}));
+    await Promise.all([
+      finalOffIds.length?postHueCommand(pin,{lightIds:finalOffIds,on:false}):Promise.resolve(),
+      finalLitColors.length?postHueCommand(pin,{lightIds:finalLitColors.map(item=>item.id),lightColors:finalLitColors,on:true,brightness:88}):Promise.resolve()
+    ]);
     if(effectToken!==state.hueEffectToken)return false;
     if(returnToStandby&&state.standby){
       await postHueCommand(pin,{lightIds:ids,lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#00008b","#e10600","#00008b","#e10600"][index%5])})),on:true,brightness:65});
@@ -1029,8 +1050,11 @@ function showPreview(type,caption,force=false,physical=false,returnToStandby=sta
     el.style.animation="lightFlash .42s ease-in-out 3";
     el.style.animationDelay=(index*35)+"ms";
   });
-  $("previewName").textContent=type.replaceAll("_"," ");
-  $("previewCaption").textContent=(caption?caption+" · ":"")+"Preview op scherm en geselecteerde Hue-lampen.";
+  const previewName=type.replaceAll("_"," ");
+  const previewCaption=(caption?caption+" · ":"")+"Preview op scherm en geselecteerde Hue-lampen.";
+  $("previewName").textContent=previewName;
+  $("previewCaption").textContent=previewCaption;
+  localStorage.setItem("fh_last_preview",JSON.stringify({name:previewName,palette,caption:previewCaption}));
   if(physical || state.playing) state.hueEffectPromise = sendHueColors(palette,"pulse",returnToStandby);
 }
 function showStandbyPreview(physical=false){
@@ -1072,7 +1096,7 @@ $("testWinnerEffectButton")?.addEventListener("click",testWinnerEffect);
 renderWinnerControls();
 renderWinnerTestOptions();
 renderEffectSettings();
-if(state.standby)showStandbyPreview();
+if(!restoreLastPreview()&&state.standby)showStandbyPreview();
 loadHueConnectionStatus();
 $("themeButton").addEventListener("click",()=>document.body.classList.toggle("light"));
 updateOffset(state.offset);
