@@ -750,7 +750,11 @@ async function returnHueToStandby() {
       if (!ids.length) return;
       const pin = await getHuePin();
       if (!pin) return;
-      await postHueCommand(pin, {lightIds:ids, on:true, color:hexToHueXY("#001f5b"), brightness:65});
+      await postHueCommand(pin, {
+        lightIds:ids,
+        lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#001f5b","#e10600","#001f5b","#e10600"][index%5])})),
+        on:true,brightness:65
+      });
       $("playerMode").textContent = state.playing ? "SYNCHRONISEERT" : "STAND-BY";
     } catch (error) {
       toast("Stand-by herstellen lukte niet: " + (error.message || "onbekende fout"));
@@ -796,10 +800,9 @@ async function sendHueColors(colors, mode="pulse"){
       return postHueCommand(pin, payload);
     };
     if(mode==="steady"){
-      await postHueCommand(pin,{
-        lightIds:ids, on:true, color:hexToHueXY(colors[0]), brightness:82
-      });
-      toast("Stand-by in één gelijktijdig commando toegepast op "+ids.length+" lamp(en).");
+      const lightColors = ids.map((id,index)=>({id, color:hexToHueXY(colors[index%colors.length])}));
+      await postHueCommand(pin,{lightIds:ids, lightColors, on:true, brightness:82});
+      toast("Rood/blauwe stand-by gelijktijdig toegepast op "+ids.length+" lamp(en).");
       return;
     }
     const pulses=colors.length>1?6:3;
@@ -808,17 +811,21 @@ async function sendHueColors(colors, mode="pulse"){
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(flashColor,95,true);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(100);
+      await wait(1);
       if (effectToken !== state.hueEffectToken) return;
       await sendAll(null,null,false);
       if (effectToken !== state.hueEffectToken) return;
-      await wait(100);
+      await wait(1);
     }
     if (effectToken !== state.hueEffectToken) return;
     await sendAll(colors[(pulses-1)%colors.length],65,true);
     if (effectToken !== state.hueEffectToken) return;
     if (state.standby) {
-      await sendAll("#001f5b",65,true);
+      await postHueCommand(pin,{
+        lightIds:ids,
+        lightColors:ids.map((id,index)=>({id,color:hexToHueXY(["#e10600","#001f5b","#e10600","#001f5b","#e10600"][index%5])})),
+        on:true,brightness:65
+      });
       $("playerMode").textContent = state.playing ? "SYNCHRONISEERT" : "STAND-BY";
     }
     toast("Gelijktijdige wedstrijdflitsen uitgevoerd op "+ids.length+" lamp(en); daarna terug naar stand-by.");
@@ -842,14 +849,14 @@ function showPreview(type,caption,force=false,physical=false){
   if(physical || state.playing) state.hueEffectPromise = sendHueColors(palette);
 }
 function showStandbyPreview(physical=false){
-  const colors=["#001f5b","#001f5b","#001f5b","#001f5b","#001f5b"];
+  const colors=["#e10600","#001f5b","#e10600","#001f5b","#e10600"];
   $("lightPreview").querySelectorAll("span").forEach((el,index)=>{
     el.style.background=colors[index];
     el.style.animation="none";
   });
   $("previewName").textContent="STANDBY · RED BULL";
-  $("previewCaption").textContent="Alle geselecteerde lampen tegelijk in blauwe Red Bull-stand-by.";
-  if(physical) state.hueEffectPromise = sendHueColors(["#001f5b"],"steady");
+  $("previewCaption").textContent="Rood/blauwe Red Bull-stand-by, gelijktijdig op alle geselecteerde lampen.";
+  if(physical) state.hueEffectPromise = sendHueColors(["#e10600","#001f5b"],"steady");
 }
 function updateOffset(value){
   state.offset=Math.max(-10,Math.min(10,Number(value)||0));
